@@ -1,4 +1,4 @@
-rules_version = '2'; // forced update
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /{document=**} {
@@ -11,61 +11,54 @@ service cloud.firestore {
     function existing() { return resource.data; }
     function isValidId(id) { return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
 
-    // Admin is Gabriel or anyone with role == 'representative' or 'dev'
+    // Admin = Gabriel, representative, or dev
     function isAdmin() {
       return isVerified() && (
         request.auth.token.email == 'gabrielpinheiro632@gmail.com' ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['representative', 'dev']
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'representative' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dev'
       );
-    }
-
-    function isDev() {
-      return isVerified() && request.auth.token.email == 'gabrielpinheiro632@gmail.com';
     }
 
     // --- Users ---
     function isValidUserCreate(data) {
-      return data.keys().hasAll(['email', 'role', 'createdAt']) && 
+      return data.keys().hasAll(['email', 'role', 'createdAt']) &&
              data.keys().size() == 3 &&
              data.email is string && data.email.size() <= 256 && data.email == request.auth.token.email &&
-             data.role is string && (data.role == 'resident' || ((data.role == 'representative' || data.role == 'dev') && request.auth.token.email == 'gabrielpinheiro632@gmail.com')) &&
+             data.role is string && data.role == 'resident' &&
              data.createdAt == request.time;
     }
 
     function isValidUserUpdate(inc, ext) {
       return inc.diff(ext).affectedKeys().hasOnly(['role']) &&
-             inc.role is string && (inc.role == 'resident' || inc.role == 'representative' || (inc.role == 'dev' && request.auth.token.email == 'gabrielpinheiro632@gmail.com'));
+             inc.role is string && (inc.role == 'resident' || inc.role == 'representative' || inc.role == 'dev');
     }
 
     match /users/{userId} {
-      // NOTE: Because email isn't strictly PII in this context, all signed-in users can read profiles 
-      // (to know who is a representative).
       allow read: if isSignedIn();
       allow create: if isVerified() && request.auth.uid == userId && isValidUserCreate(incoming());
       allow update: if isVerified() && isValidId(userId) && (
-        isAdmin() || // Admins can change anyone's role
+        isAdmin() ||
         (request.auth.uid == userId && request.auth.token.email == 'gabrielpinheiro632@gmail.com')
       ) && isValidUserUpdate(incoming(), existing());
     }
 
     // --- Config ---
     function isValidAppConfig(data) {
-      return data.keys().hasAll(['maintenanceTasks', 'updatedAt']) &&
-             (!('schedule' in data) || (data.schedule is map && data.schedule.size() <= 365)) &&
+      return data.keys().hasAll(['maintenanceTasks', 'schedule', 'updatedAt']) &&
+             (!('rulesTitle' in data) || (data.rulesTitle is string && data.rulesTitle.size() <= 200)) &&
              (!('appTitle' in data) || (data.appTitle is string && data.appTitle.size() <= 200)) &&
-             (!('appSubtitle' in data) || (data.appSubtitle is string && data.appSubtitle.size() <= 300)) &&
+             (!('appSubtitle' in data) || (data.appSubtitle is string && data.appSubtitle.size() <= 500)) &&
              (!('tabMainName' in data) || (data.tabMainName is string && data.tabMainName.size() <= 100)) &&
              (!('tabRulesName' in data) || (data.tabRulesName is string && data.tabRulesName.size() <= 100)) &&
              (!('tabGeneralRulesName' in data) || (data.tabGeneralRulesName is string && data.tabGeneralRulesName.size() <= 100)) &&
              (!('tabLinksName' in data) || (data.tabLinksName is string && data.tabLinksName.size() <= 100)) &&
              (!('tabProductsName' in data) || (data.tabProductsName is string && data.tabProductsName.size() <= 100)) &&
              (!('tabMaintenanceName' in data) || (data.tabMaintenanceName is string && data.tabMaintenanceName.size() <= 100)) &&
-             (!('maintenanceDescription' in data) || (data.maintenanceDescription is string && data.maintenanceDescription.size() <= 1000)) &&
+             (!('maintenanceDescription' in data) || (data.maintenanceDescription is string && data.maintenanceDescription.size() <= 2000)) &&
              (!('maintenanceField1Title' in data) || (data.maintenanceField1Title is string && data.maintenanceField1Title.size() <= 200)) &&
              (!('maintenanceField2Title' in data) || (data.maintenanceField2Title is string && data.maintenanceField2Title.size() <= 200)) &&
              (!('maintenanceField3Title' in data) || (data.maintenanceField3Title is string && data.maintenanceField3Title.size() <= 200)) &&
-             (!('fundBalance' in data) || (data.fundBalance is number)) &&
-             (!('rulesTitle' in data) || (data.rulesTitle is string && data.rulesTitle.size() <= 200)) &&
              (!('cleaningRules' in data) || (data.cleaningRules is list && data.cleaningRules.size() <= 100)) &&
              (!('ruleBlocks' in data) || (data.ruleBlocks is list && data.ruleBlocks.size() <= 50)) &&
              (!('generalRuleBlocks' in data) || (data.generalRuleBlocks is list && data.generalRuleBlocks.size() <= 50)) &&
@@ -79,61 +72,44 @@ service cloud.firestore {
              (!('buyingProductsDay' in data) || (data.buyingProductsDay is number || data.buyingProductsDay is string)) &&
              (!('coletivoWeekends' in data) || (data.coletivoWeekends is list && data.coletivoWeekends.size() <= 100)) &&
              (!('products' in data) || (data.products is list && data.products.size() <= 200)) &&
+             (!('links' in data) || (data.links is list && data.links.size() <= 100)) &&
+             (!('absentRooms' in data) || (data.absentRooms is list && data.absentRooms.size() <= 10)) &&
+             (!('absentRoomsWeek' in data) || (data.absentRoomsWeek is number)) &&
              (!('weeklyRotationOffset' in data) || (data.weeklyRotationOffset is number)) &&
              (!('monthlyRotationOffset' in data) || (data.monthlyRotationOffset is number)) &&
-             (!('absentRooms' in data) || (data.absentRooms is list && data.absentRooms.size() <= 5)) &&
-             (!('links' in data) || (data.links is list && data.links.size() <= 30)) &&
+             (!('fundBalance' in data) || (data.fundBalance is number)) &&
              data.maintenanceTasks is list && data.maintenanceTasks.size() <= 100 &&
+             data.schedule is map && data.schedule.size() <= 365 &&
              data.updatedAt == request.time;
     }
 
     function isValidAppConfigUpdate(inc, ext) {
-       let allowedKeys = ['maintenanceTasks', 'schedule', 'cleaningRules', 'updatedAt', 'rulesTitle',
-         'ruleBlocks', 'generalRuleBlocks', 'cleaningResponsible', 'maintenanceResponsible',
-         'fridgeCleaningResponsible', 'buyingProductsResponsible', 'cleaningDay', 'maintenanceDay',
-         'fridgeCleaningDay', 'buyingProductsDay', 'coletivoWeekends', 'products',
-         'weeklyRotationOffset', 'monthlyRotationOffset', 'absentRooms', 'absentRoomsWeek', 'links',
-         'appTitle', 'appSubtitle', 'tabMainName', 'tabRulesName', 'tabGeneralRulesName', 
-         'tabLinksName', 'tabProductsName', 'tabMaintenanceName',
-         'maintenanceDescription', 'maintenanceField1Title', 'maintenanceField2Title',
-         'maintenanceField3Title', 'fundBalance'];
+       let allowedKeys = [
+         'maintenanceTasks', 'schedule', 'cleaningRules', 'updatedAt', 'rulesTitle',
+         'ruleBlocks', 'generalRuleBlocks',
+         'cleaningResponsible', 'maintenanceResponsible', 'fridgeCleaningResponsible', 'buyingProductsResponsible',
+         'cleaningDay', 'maintenanceDay', 'fridgeCleaningDay', 'buyingProductsDay',
+         'coletivoWeekends', 'products', 'links',
+         'absentRooms', 'absentRoomsWeek',
+         'weeklyRotationOffset', 'monthlyRotationOffset',
+         'fundBalance',
+         'appTitle', 'appSubtitle',
+         'tabMainName', 'tabRulesName', 'tabGeneralRulesName', 'tabLinksName', 'tabProductsName', 'tabMaintenanceName',
+         'maintenanceDescription', 'maintenanceField1Title', 'maintenanceField2Title', 'maintenanceField3Title'
+       ];
        return inc.diff(ext).affectedKeys().hasOnly(allowedKeys);
-    }
-
-    // Moradores podem atualizar apenas o campo 'products' (editar estoque)
-    function isValidProductsOnlyUpdate(inc, ext) {
-      return inc.diff(ext).affectedKeys().hasOnly(['products', 'updatedAt']) &&
-             (!('products' in inc) || (inc.products is list && inc.products.size() <= 200));
     }
 
     match /config/{configId} {
       allow read: if isSignedIn();
       allow create: if isAdmin() && isValidId(configId) && isValidAppConfig(incoming());
-      allow update: if isSignedIn() && isValidId(configId) && (
-        // Representante pode alterar qualquer campo
-        (isAdmin() && isValidAppConfig(incoming()) && isValidAppConfigUpdate(incoming(), existing())) ||
-        // Morador pode alterar apenas o estoque de produtos
-        (!isAdmin() && isValidProductsOnlyUpdate(incoming(), existing()))
-      );
-    }
-    
-    function isValidHistory(data) {
-      let required = ['weekKey', 'monthKey', 'year', 'weekNumber', 
-                      'cleaningRoom', 'maintenanceRoom', 'fridgeRoom', 'productsRoom',
-                      'cleaningExactDate', 'maintenanceExactDate', 'fridgeExactDate', 'productsExactDate', 'savedAt'];
-      return data.keys().hasAll(required) &&
-             data.weekKey is string && data.monthKey is string && data.year is number && data.weekNumber is number &&
-             data.cleaningRoom is string && data.maintenanceRoom is string &&
-             data.fridgeRoom is string && data.productsRoom is string &&
-             data.cleaningExactDate is string && data.maintenanceExactDate is string &&
-             data.fridgeExactDate is string && data.productsExactDate is string &&
-             data.savedAt == request.time;
+      allow update: if isAdmin() && isValidId(configId) && isValidAppConfig(incoming()) && isValidAppConfigUpdate(incoming(), existing());
     }
 
-    match /history/{historyId} {
+    // --- History (weekly snapshots) ---
+    match /history/{weekKey} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidHistory(incoming());
-      allow delete: if isDev();
+      allow write: if isSignedIn();
     }
   }
 }

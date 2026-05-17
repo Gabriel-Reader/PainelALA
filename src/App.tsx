@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CalendarDays, ClipboardList, Settings, LogOut, Pencil, Languages } from 'lucide-react';
+import { CalendarDays, ClipboardList, Settings, LogOut, Pencil, Languages, CheckSquare, BookOpen, Link2, Package, Wrench } from 'lucide-react';
 import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { deleteField, doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
@@ -422,13 +422,13 @@ export default function App() {
   const currentGeneralRuleBlocks = config.generalRuleBlocks || [];
 
   // ── NAV TABS ───────────────────────────────────────────────────────────────
-  const NAV_TABS: { key: ActiveTab; label: string; configKey: keyof typeof config }[] = [
-    { key: 'main', label: config.tabMainName || t.tabMain, configKey: 'tabMainName' },
-    { key: 'rules', label: config.tabRulesName || t.tabRules, configKey: 'tabRulesName' },
-    { key: 'general_rules', label: config.tabGeneralRulesName || t.tabGeneralRules, configKey: 'tabGeneralRulesName' },
-    { key: 'links', label: config.tabLinksName || t.tabLinks, configKey: 'tabLinksName' },
-    { key: 'products', label: config.tabProductsName || t.tabProducts, configKey: 'tabProductsName' },
-    { key: 'maintenance', label: config.tabMaintenanceName || t.tabMaintenance, configKey: 'tabMaintenanceName' },
+  const NAV_TABS: { key: ActiveTab; label: string; mobileLabel: string; icon: React.ReactNode; configKey: keyof typeof config }[] = [
+    { key: 'main',         label: config.tabMainName         || t.tabMain,         mobileLabel: lang === 'pt' ? 'Escalas'    : 'Schedules', icon: <CalendarDays size={22} />,  configKey: 'tabMainName' },
+    { key: 'rules',        label: config.tabRulesName        || t.tabRules,        mobileLabel: lang === 'pt' ? 'Limpeza'    : 'Cleaning',  icon: <CheckSquare size={22} />,   configKey: 'tabRulesName' },
+    { key: 'general_rules',label: config.tabGeneralRulesName || t.tabGeneralRules, mobileLabel: lang === 'pt' ? 'Regras'     : 'Rules',     icon: <BookOpen size={22} />,      configKey: 'tabGeneralRulesName' },
+    { key: 'links',        label: config.tabLinksName        || t.tabLinks,        mobileLabel: 'Links',                                   icon: <Link2 size={22} />,         configKey: 'tabLinksName' },
+    { key: 'products',     label: config.tabProductsName     || t.tabProducts,     mobileLabel: lang === 'pt' ? 'Estoque'    : 'Stock',     icon: <Package size={22} />,       configKey: 'tabProductsName' },
+    { key: 'maintenance',  label: config.tabMaintenanceName  || t.tabMaintenance,  mobileLabel: lang === 'pt' ? 'Manu-\ntenção' : 'Maint.',  icon: <Wrench size={22} />,        configKey: 'tabMaintenanceName' },
   ];
 
   return (
@@ -517,8 +517,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* Nav tabs */}
-        <div className="max-w-7xl mx-auto flex overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+        {/* Nav tabs — oculto em mobile */}
+        <div className="max-w-7xl mx-auto hidden sm:flex overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
           {NAV_TABS.map(tab => (
             <div key={tab.key} className={`flex items-center shrink-0 border-b-4 transition-colors ${activeTab === tab.key ? 'border-sky-400' : 'border-transparent hover:border-sky-700'}`}>
               <button onClick={() => handleSetActiveTab(tab.key)}
@@ -549,7 +549,7 @@ export default function App() {
       </header>
 
       {/* ── Main ── */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 sm:pb-8">
 
         {activeTab === 'main' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -612,6 +612,32 @@ export default function App() {
           <MaintenanceTab config={config} isAdmin={isDev || isRep} updateConfig={updateConfig} />
         )}
       </main>
+
+      {/* ── Mobile Bottom Tab Bar ── */}
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-neutral-900/95 backdrop-blur-md border-t border-neutral-700/80 shadow-[0_-4px_24px_-4px_rgba(0,0,0,0.6)] flex">
+        {NAV_TABS.map(tab => {
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => handleSetActiveTab(tab.key)}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 px-0.5 transition-all duration-200 relative ${
+                isActive ? 'text-sky-400' : 'text-neutral-500 hover:text-neutral-300'
+              }`}
+            >
+              {isActive && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-sky-400" />
+              )}
+              <span className={`transition-transform duration-200 ${isActive ? 'scale-110' : 'scale-100'}`}>
+                {tab.icon}
+              </span>
+              <span className="text-[9px] font-semibold leading-tight text-center whitespace-pre-line">
+                {tab.mobileLabel}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
 
       {/* ── Modals ── */}
       {residentSelectedDay && (

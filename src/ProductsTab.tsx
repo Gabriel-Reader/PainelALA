@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Product } from './hooks/useWingConfig';
 import { Plus, Trash2, Edit2, ShoppingBag, Check, Wallet, Pencil, X } from 'lucide-react';
+import { useLang } from './LanguageContext';
 
 interface ProductsTabProps {
   products: Product[];
@@ -11,6 +12,7 @@ interface ProductsTabProps {
 }
 
 export function ProductsTab({ products, isRep, updateProducts, fundBalance, updateFundBalance }: ProductsTabProps) {
+  const { t } = useLang();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editType, setEditType] = useState<'unit' | 'amount'>('unit');
@@ -32,7 +34,7 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
   const handleAdd = () => {
     const newProduct: Product = {
       id: Math.random().toString(36).substr(2, 9),
-      name: editName || 'Novo Produto',
+      name: editName || t.newProduct,
       type: editType,
     };
     if (editType === 'unit') {
@@ -82,12 +84,12 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
 
   const getStatusLabel = (status?: string) => {
     switch (status) {
-      case 'full': return 'Bastante quantidade';
-      case 'more_than_half': return 'Um pouco mais da metade';
-      case 'half': return 'Na metade';
-      case 'low': return 'Um pouco menos da metade';
-      case 'less_than_half': return 'Um pouco menos da metade';
-      case 'empty': return 'Sem estoque';
+      case 'full': return t.statusFull;
+      case 'more_than_half': return t.statusMoreThanHalf;
+      case 'half': return t.statusHalf;
+      case 'low': return t.statusLow;
+      case 'less_than_half': return t.statusLow;
+      case 'empty': return t.statusEmpty;
       default: return '';
     }
   };
@@ -122,32 +124,32 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
   };
 
   /* ---- FORMULÁRIO DE EDIÇÃO INLINE ---- */
-  const EditForm = ({ onSave, onCancel }: { onSave: () => void; onCancel: () => void }) => (
+  const renderEditForm = (onSave: () => void, onCancel: () => void) => (
     <div className="flex flex-col gap-4">
       <input
         type="text"
         value={editName}
         onChange={e => setEditName(e.target.value)}
         className="bg-neutral-900 border border-neutral-700 text-white px-3 py-2 rounded-md focus:outline-none focus:border-pink-500"
-        placeholder="Nome do produto"
+        placeholder={t.productNamePlaceholder}
       />
       <select
         value={editType}
         onChange={e => setEditType(e.target.value as 'unit' | 'amount')}
         className="bg-neutral-900 border border-neutral-700 text-white px-3 py-2 rounded-md focus:outline-none focus:border-pink-500"
       >
-        <option value="unit">Por Unidade (1, 2...)</option>
-        <option value="amount">Por Volume Líquido</option>
+        <option value="unit">{t.byUnit}</option>
+        <option value="amount">{t.byVolume}</option>
       </select>
 
       {editType === 'unit' && (
         <div className="flex gap-2">
           <label className="flex-1 min-w-0 flex flex-col gap-1 text-xs text-neutral-400">
-            Atual
+            {t.current}
             <input type="number" min="0" value={editQuantity} onChange={e => setEditQuantity(Number(e.target.value))} className="w-full bg-neutral-900 border border-neutral-700 text-white px-2 py-1.5 rounded-md focus:outline-none focus:border-pink-500" />
           </label>
           <label className="flex-1 min-w-0 flex flex-col gap-1 text-xs text-neutral-400">
-            Ideal (Máx)
+            {t.idealMax}
             <input type="number" min="1" value={editTargetQuantity} onChange={e => setEditTargetQuantity(Number(e.target.value))} className="w-full bg-neutral-900 border border-neutral-700 text-white px-2 py-1.5 rounded-md focus:outline-none focus:border-pink-500" />
           </label>
         </div>
@@ -159,18 +161,18 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
           onChange={e => setEditStatus(e.target.value as any)}
           className="bg-neutral-900 border border-neutral-700 text-white px-3 py-2 rounded-md focus:outline-none focus:border-pink-500"
         >
-          <option value="full">Bastante quantidade</option>
-          <option value="more_than_half">Um pouco mais da metade</option>
-          <option value="half">Na metade</option>
-          <option value="less_than_half">Um pouco menos da metade</option>
-          <option value="empty">Sem estoque</option>
+          <option value="full">{t.statusFull}</option>
+          <option value="more_than_half">{t.statusMoreThanHalf}</option>
+          <option value="half">{t.statusHalf}</option>
+          <option value="less_than_half">{t.statusLow}</option>
+          <option value="empty">{t.statusEmpty}</option>
         </select>
       )}
 
       <div className="flex gap-2 mt-2">
-        <button onClick={onCancel} className="flex-1 px-3 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-lg text-sm font-semibold transition-colors">Cancelar</button>
+        <button onClick={onCancel} className="flex-1 px-3 py-2 bg-neutral-700 hover:bg-neutral-600 rounded-lg text-sm font-semibold transition-colors">{t.cancel}</button>
         <button onClick={onSave} disabled={!editName.trim()} className="flex-[2] items-center justify-center gap-1 bg-pink-600 hover:bg-pink-700 rounded-lg text-sm font-semibold transition-colors flex text-white disabled:opacity-50">
-          <Check size={16} /> Salvar
+          <Check size={16} /> {t.save}
         </button>
       </div>
     </div>
@@ -182,9 +184,9 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
         <div>
           <h2 className="text-2xl font-bold text-neutral-100 flex items-center gap-2">
             <ShoppingBag className="text-pink-400" />
-            Estoque de Produtos
+            {t.productsTitle}
           </h2>
-          <p className="text-neutral-400 mt-1">Acompanhe a quantidade dos produtos de limpeza da ala.</p>
+          <p className="text-neutral-400 mt-1">{t.productsDesc}</p>
         </div>
         
         <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
@@ -194,7 +196,7 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
               <Wallet className="w-5 h-5 text-emerald-400" />
             </div>
             <div className="flex-1 min-w-[120px]">
-              <p className="text-xs text-emerald-300/80 font-medium whitespace-nowrap">Caixinha da Ala</p>
+              <p className="text-xs text-emerald-300/80 font-medium whitespace-nowrap">{t.wingFund}</p>
               {isEditingFund ? (
                 <div className="flex flex-col gap-2 mt-1">
                   <div className="flex items-center gap-1">
@@ -215,7 +217,7 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
                       onClick={handleSaveFund}
                       className="flex-1 flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white rounded-lg py-2 text-sm font-bold transition-colors"
                     >
-                      <Check size={15} /> Salvar
+                      <Check size={15} /> {t.save}
                     </button>
                     <button
                       onClick={() => setIsEditingFund(false)}
@@ -251,7 +253,7 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
               className="flex items-center justify-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-4 py-3 sm:py-2.5 rounded-xl font-bold transition-colors shadow-sm flex-1 sm:flex-initial"
             >
               <Plus size={18} />
-              Novo Produto
+              {t.newProduct}
             </button>
           )}
         </div>
@@ -264,10 +266,10 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
           if (isEditing) {
             return (
               <div key={product.id} className="bg-neutral-800 rounded-xl p-5 border border-pink-500 flex flex-col gap-4 shadow-lg ring-2 ring-pink-500/20">
-                <EditForm
-                  onSave={() => handleUpdate(product.id)}
-                  onCancel={() => setEditingId(null)}
-                />
+                {renderEditForm(
+                  () => handleUpdate(product.id),
+                  () => setEditingId(null)
+                )}
               </div>
             );
           }
@@ -294,7 +296,7 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
                         setIsAdding(false);
                       }}
                       className="p-1.5 text-neutral-400 hover:text-sky-400 hover:bg-neutral-700 rounded-md transition-colors"
-                      title="Editar"
+                      title={t.edit}
                     >
                       <Edit2 size={14} />
                     </button>
@@ -302,7 +304,7 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
                       <button
                         onClick={() => handleDelete(product.id)}
                         className="p-1.5 text-neutral-400 hover:text-red-400 hover:bg-neutral-700 rounded-md transition-colors"
-                        title="Excluir"
+                        title={t.delete}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -344,10 +346,10 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
 
         {isAdding && (
           <div className="bg-neutral-800 rounded-xl p-5 border border-pink-500 flex flex-col gap-4 shadow-lg ring-2 ring-pink-500/20">
-            <EditForm
-              onSave={handleAdd}
-              onCancel={() => { setIsAdding(false); resetEditState(); }}
-            />
+            {renderEditForm(
+              handleAdd,
+              () => { setIsAdding(false); resetEditState(); }
+            )}
           </div>
         )}
       </div>
@@ -355,11 +357,11 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
       {products.length === 0 && !isAdding && (
         <div className="bg-neutral-800/50 rounded-2xl border border-neutral-700 p-10 text-center flex flex-col items-center">
           <ShoppingBag className="w-12 h-12 text-neutral-600 mb-4" />
-          <h3 className="text-xl font-bold text-neutral-300 mb-2">Nenhum produto cadastrado</h3>
+          <h3 className="text-xl font-bold text-neutral-300 mb-2">{t.noProducts}</h3>
           <p className="text-neutral-500 max-w-md mx-auto">
             {isRep
-              ? 'Nenhum item adicionado no estoque. Comece adicionando os produtos de limpeza.'
-              : 'A lista de estoque da ala ainda não foi configurada pelo representante.'}
+              ? t.noProductsRep
+              : t.noProductsResident}
           </p>
         </div>
       )}

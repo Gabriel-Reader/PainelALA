@@ -3,6 +3,7 @@ import * as Icons from 'lucide-react';
 import { ExternalLink, Plus, Pencil, Trash2, X } from 'lucide-react';
 import { AppLink, AppConfig } from '../hooks/useWingConfig';
 import { useLang } from '../LanguageContext';
+import { ConfirmModal } from './ConfirmModal';
 
 const DEFAULT_LINKS: AppLink[] = [
   {
@@ -53,6 +54,7 @@ export function LinksTab({ links, isAdmin, updateConfig }: LinksTabProps) {
   const [editingLink, setEditingLink] = useState<AppLink | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [formData, setFormData] = useState<Partial<AppLink>>({});
+  const [linkToDelete, setLinkToDelete] = useState<string | null>(null);
   const { t } = useLang();
 
   const handleSave = () => {
@@ -87,11 +89,17 @@ export function LinksTab({ links, isAdmin, updateConfig }: LinksTabProps) {
     setFormData({});
   };
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
+  const openDeleteModal = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
-    if (!updateConfig || !window.confirm(t.deleteLink)) return;
+    if (!updateConfig) return;
+    setLinkToDelete(id);
+  };
+
+  const confirmDelete = () => {
+    if (!linkToDelete || !updateConfig) return;
     const baseLinks = links || DEFAULT_LINKS;
-    updateConfig({ links: baseLinks.filter(l => l.id !== id) });
+    updateConfig({ links: baseLinks.filter(l => l.id !== linkToDelete) });
+    setLinkToDelete(null);
   };
 
   const openEdit = (link: AppLink, e: React.MouseEvent) => {
@@ -153,7 +161,7 @@ export function LinksTab({ links, isAdmin, updateConfig }: LinksTabProps) {
                     <button onClick={(e) => openEdit(link, e)} className="p-1.5 md:p-2 text-neutral-400 hover:text-sky-400 hover:bg-neutral-700 rounded transition-colors" title={t.edit}>
                       <Pencil size={18} className="md:w-4 md:h-4" />
                     </button>
-                    <button onClick={(e) => handleDelete(link.id, e)} className="p-1.5 md:p-2 text-neutral-400 hover:text-red-400 hover:bg-neutral-700 rounded transition-colors" title={t.delete}>
+                    <button onClick={(e) => openDeleteModal(link.id, e)} className="p-1.5 md:p-2 text-neutral-400 hover:text-red-400 hover:bg-neutral-700 rounded transition-colors" title={t.delete}>
                       <Trash2 size={18} className="md:w-4 md:h-4" />
                     </button>
                   </div>
@@ -218,6 +226,14 @@ export function LinksTab({ links, isAdmin, updateConfig }: LinksTabProps) {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!linkToDelete}
+        title={t.delete}
+        message={t.deleteLink}
+        onConfirm={confirmDelete}
+        onCancel={() => setLinkToDelete(null)}
+      />
     </div>
   );
 }

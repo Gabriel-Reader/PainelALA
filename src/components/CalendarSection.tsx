@@ -2,15 +2,17 @@ import React, { useState, Fragment } from 'react';
 import { CalendarDays, Trash2, History } from 'lucide-react';
 import { AppConfig } from '../hooks/useWingConfig';
 import { HistoryModal } from './HistoryModal';
+import { useLang } from '../LanguageContext';
 
 type CalendarMode = 'cleaning' | 'maintenance' | 'fridge' | 'products' | 'coletivo';
 
 interface DayTask {
   id: string;
-  type: string;
+  type: CalendarMode | string;
   shortType: string;
   color: string;
   room: string;
+  isManual: boolean;
 }
 
 interface CalendarSectionProps {
@@ -40,13 +42,7 @@ const COLOR_MAP: Record<string, string> = {
   purple: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
 };
 
-const MODE_BUTTONS: { key: CalendarMode; label: string; active: string }[] = [
-  { key: 'cleaning',    label: 'Limpeza',      active: 'bg-sky-600/80' },
-  { key: 'maintenance', label: 'Manutenção',   active: 'bg-amber-600/80' },
-  { key: 'fridge',      label: 'L. Geladeira', active: 'bg-teal-600/80' },
-  { key: 'products',    label: 'Comprar p.',   active: 'bg-pink-600/80' },
-  { key: 'coletivo',    label: 'Coletivo',     active: 'bg-purple-600/80' },
-];
+
 
 export function CalendarSection({
   isRep, isDev, viewDate, today, currentMonth,
@@ -54,8 +50,17 @@ export function CalendarSection({
   getFinalDaysAndTasks, handleDayClick,
   handlePrevMonth, handleNextMonth, handleClearMonth,
 }: CalendarSectionProps) {
+  const { t, lang } = useLang();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const totalCells = Math.ceil((daysInMonth + firstDay) / 7) * 7;
+
+  const MODE_BUTTONS: { key: CalendarMode; label: string; active: string }[] = [
+    { key: 'cleaning',    label: t.calendarModes.cleaning,      active: 'bg-sky-600/80' },
+    { key: 'maintenance', label: t.calendarModes.maintenance,   active: 'bg-amber-600/80' },
+    { key: 'fridge',      label: t.calendarModes.fridge,        active: 'bg-teal-600/80' },
+    { key: 'products',    label: t.calendarModes.products,      active: 'bg-pink-600/80' },
+    { key: 'coletivo',    label: t.calendarModes.coletivo,      active: 'bg-purple-600/80' },
+  ];
 
   return (
     <div className="lg:col-span-9 bg-neutral-800 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-neutral-700 overflow-hidden flex flex-col">
@@ -65,7 +70,7 @@ export function CalendarSection({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center space-x-2 shrink-0">
             <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5 text-neutral-400" />
-            <h2 className="text-sm sm:text-lg font-semibold text-neutral-200 uppercase tracking-wider">Escala do Mês</h2>
+            <h2 className="text-sm sm:text-lg font-semibold text-neutral-200 uppercase tracking-wider">{lang === 'en' ? 'Month Schedule' : 'Escala do Mês'}</h2>
           </div>
           <div className="flex items-center gap-1.5">
             <button onClick={handlePrevMonth} className="p-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300">{'<'}</button>
@@ -98,7 +103,7 @@ export function CalendarSection({
         <div className="p-4 bg-neutral-950/50 rounded-xl shadow-inner border border-neutral-800 h-full flex flex-col">
           <div className="grid grid-cols-7 gap-px bg-neutral-800 rounded overflow-hidden flex-1 border border-neutral-800">
             {/* Headers */}
-            {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
+            {t.weekDays.map(day => (
               <div key={day} className="bg-neutral-900 text-center py-3 text-sm font-semibold text-neutral-500 border-b border-neutral-800 uppercase tracking-widest">
                 {day}
               </div>
@@ -134,12 +139,12 @@ export function CalendarSection({
                     {dayTasks.map(task => (
                       <Fragment key={task.id}>
                         {/* Desktop badge */}
-                        <div className={`hidden sm:flex items-center justify-between ${COLOR_MAP[task.color]} font-bold text-[10px] w-full py-0.5 px-1 rounded shadow-sm border truncate`} title={task.type}>
+                        <div className={`hidden sm:flex items-center justify-between ${COLOR_MAP[task.color]} font-bold text-[10px] w-full py-0.5 px-1 rounded shadow-sm border truncate ${task.isManual ? 'border-dashed border-white/40 ring-1 ring-white/10' : ''}`} title={task.isManual ? `${task.type} (data personalizada)` : task.type}>
                           <span className="truncate mr-1">{task.shortType || task.type}</span>
                           <span className="opacity-80 shrink-0 text-[10px]">{task.room === 'Coletivo' ? 'Col' : `Q${task.room}`}</span>
                         </div>
                         {/* Mobile badge */}
-                        <div className={`sm:hidden flex items-center justify-center ${COLOR_MAP[task.color]} px-0.5 py-0.5 rounded text-[8.5px] font-bold w-full border truncate leading-none`} title={`${task.type} - Quarto ${task.room}`}>
+                        <div className={`sm:hidden flex items-center justify-center ${COLOR_MAP[task.color]} px-0.5 py-0.5 rounded text-[8.5px] font-bold w-full border truncate leading-none ${task.isManual ? 'border-dashed border-white/40' : ''}`} title={task.isManual ? `${task.type} (data personalizada) - Quarto ${task.room}` : `${task.type} - Quarto ${task.room}`}>
                           <span className="truncate">{(task.shortType || task.type).substring(0, 4)}</span>
                           <span className="opacity-70 ml-0.5 shrink-0">{task.room === 'Coletivo' ? 'C' : task.room}</span>
                         </div>
@@ -151,21 +156,33 @@ export function CalendarSection({
             })}
           </div>
 
+          {/* Legenda */}
+          <div className="flex items-center justify-center gap-4 mt-3 pt-2 border-t border-neutral-700/50 text-[10px] text-neutral-500">
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-3 h-2 rounded border border-current" />
+              {t.automatic || 'Automático'}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-3 h-2 rounded border border-dashed border-white/50" />
+              {t.customDate || 'Data personalizada'}
+            </span>
+          </div>
+
           {isRep && (
-            <div className="flex justify-center mt-4 shrink-0 gap-3">
+            <div className="flex justify-center mt-3 shrink-0 gap-3">
               <button
                 onClick={() => setIsHistoryOpen(true)}
                 className="px-3 py-1.5 rounded-md text-xs font-bold bg-neutral-700 hover:bg-sky-900/50 text-sky-400 transition-colors flex items-center gap-1.5 shadow-sm"
               >
                 <History className="w-3.5 h-3.5" />
-                Histórico
+                {t.history}
               </button>
               <button
                 onClick={handleClearMonth}
                 className="px-3 py-1.5 rounded-md text-xs font-bold bg-neutral-700 hover:bg-red-900/50 text-red-400 transition-colors flex items-center gap-1.5 shadow-sm"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                Limpar Mês
+                {t.clearMonth}
               </button>
             </div>
           )}

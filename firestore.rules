@@ -41,6 +41,10 @@ service cloud.firestore {
         isAdmin() ||
         (request.auth.uid == userId && request.auth.token.email == 'gabrielpinheiro632@gmail.com')
       ) && isValidUserUpdate(incoming(), existing());
+      allow delete: if isVerified() && (
+        request.auth.token.email == 'gabrielpinheiro632@gmail.com' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dev'
+      );
     }
 
     // --- Config ---
@@ -59,6 +63,10 @@ service cloud.firestore {
              (!('maintenanceField1Title' in data) || (data.maintenanceField1Title is string && data.maintenanceField1Title.size() <= 200)) &&
              (!('maintenanceField2Title' in data) || (data.maintenanceField2Title is string && data.maintenanceField2Title.size() <= 200)) &&
              (!('maintenanceField3Title' in data) || (data.maintenanceField3Title is string && data.maintenanceField3Title.size() <= 200)) &&
+             (!('rulesCardTitle' in data) || (data.rulesCardTitle is string && data.rulesCardTitle.size() <= 200)) &&
+             (!('rulesCardDescription' in data) || (data.rulesCardDescription is string && data.rulesCardDescription.size() <= 2000)) &&
+             (!('generalRulesCardTitle' in data) || (data.generalRulesCardTitle is string && data.generalRulesCardTitle.size() <= 200)) &&
+             (!('generalRulesCardDescription' in data) || (data.generalRulesCardDescription is string && data.generalRulesCardDescription.size() <= 2000)) &&
              (!('cleaningRules' in data) || (data.cleaningRules is list && data.cleaningRules.size() <= 100)) &&
              (!('ruleBlocks' in data) || (data.ruleBlocks is list && data.ruleBlocks.size() <= 50)) &&
              (!('generalRuleBlocks' in data) || (data.generalRuleBlocks is list && data.generalRuleBlocks.size() <= 50)) &&
@@ -71,6 +79,8 @@ service cloud.firestore {
              (!('fridgeCleaningDay' in data) || (data.fridgeCleaningDay is number || data.fridgeCleaningDay is string)) &&
              (!('buyingProductsDay' in data) || (data.buyingProductsDay is number || data.buyingProductsDay is string)) &&
              (!('coletivoWeekends' in data) || (data.coletivoWeekends is list && data.coletivoWeekends.size() <= 100)) &&
+             (!('fridgeAutoDays' in data) || (data.fridgeAutoDays is list && data.fridgeAutoDays.size() <= 31)) &&
+             (!('productsAutoDays' in data) || (data.productsAutoDays is list && data.productsAutoDays.size() <= 31)) &&
              (!('products' in data) || (data.products is list && data.products.size() <= 200)) &&
              (!('links' in data) || (data.links is list && data.links.size() <= 100)) &&
              (!('absentRooms' in data) || (data.absentRooms is list && data.absentRooms.size() <= 10)) &&
@@ -95,7 +105,8 @@ service cloud.firestore {
          'fundBalance',
          'appTitle', 'appSubtitle',
          'tabMainName', 'tabRulesName', 'tabGeneralRulesName', 'tabLinksName', 'tabProductsName', 'tabMaintenanceName',
-         'maintenanceDescription', 'maintenanceField1Title', 'maintenanceField2Title', 'maintenanceField3Title'
+         'maintenanceDescription', 'maintenanceField1Title', 'maintenanceField2Title', 'maintenanceField3Title',
+         'rulesCardTitle', 'rulesCardDescription', 'generalRulesCardTitle', 'generalRulesCardDescription'
        ];
        return inc.diff(ext).affectedKeys().hasOnly(allowedKeys);
     }

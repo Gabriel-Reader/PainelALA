@@ -1,5 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
+import { useLang } from '../LanguageContext';
 
 interface DayTask {
   id: string;
@@ -24,6 +25,7 @@ const COLOR_MAP: Record<string, string> = {
 };
 
 export function ResidentDayModal({ dayNumber, dayTasks, onClose }: ResidentDayModalProps) {
+  const { t, lang } = useLang();
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
@@ -34,7 +36,7 @@ export function ResidentDayModal({ dayNumber, dayTasks, onClose }: ResidentDayMo
         onClick={e => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold tracking-tight text-white">Dia {dayNumber}</h3>
+          <h3 className="text-xl font-bold tracking-tight text-white">{lang === 'en' ? `Day ${dayNumber}` : `Dia ${dayNumber}`}</h3>
           <button
             onClick={onClose}
             className="text-neutral-400 hover:text-white p-2 rounded-full hover:bg-neutral-700 transition"
@@ -51,13 +53,13 @@ export function ResidentDayModal({ dayNumber, dayTasks, onClose }: ResidentDayMo
             >
               <span>{task.type}</span>
               <span className="opacity-80 leading-none bg-black/20 p-1.5 rounded">
-                {task.room === 'Coletivo' ? 'Coletivo' : `Q${task.room}`}
+                {task.room === 'Coletivo' ? t.coletivo : (lang === 'en' ? `R${task.room}` : `Q${task.room}`)}
               </span>
             </div>
           ))}
           {dayTasks.length === 0 && (
             <p className="text-neutral-500 text-center py-4 italic">
-              Nenhuma atividade programada para este dia.
+              {t.noTasksForDay}
             </p>
           )}
         </div>

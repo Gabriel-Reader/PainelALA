@@ -1,7 +1,18 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Edit2, CheckSquare } from 'lucide-react';
+import { Plus, Trash2, Edit2, CheckSquare, Check, X, GripVertical, AlertCircle, Pencil } from 'lucide-react';
 import { AppConfig, RuleBlock } from '../hooks/useWingConfig';
 import { useLang } from '../LanguageContext';
+
+const renderFormattedText = (text: string) => {
+  if (!text) return '';
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={idx} className="font-bold text-neutral-900">{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+};
 
 interface RulesTabProps {
   config: AppConfig;
@@ -15,6 +26,9 @@ export function RulesTab({ config, isRep, updateConfig, currentRuleBlocks }: Rul
   const [editBlockTitleValue, setEditBlockTitleValue] = useState('');
   const [addingRuleToBlock, setAddingRuleToBlock] = useState<string | null>(null);
   const [addingRuleDesc, setAddingRuleDesc] = useState('');
+  const [editingRule, setEditingRule] = useState<{ blockId: string; index: number; value: string } | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ blockId: string; index: number } | null>(null);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
   const { t } = useLang();
 
   const handleAddBlock = () => {
@@ -48,8 +62,104 @@ export function RulesTab({ config, isRep, updateConfig, currentRuleBlocks }: Rul
     });
   };
 
+  const handleUpdateRule = (blockId: string, ruleIndex: number, newValue: string) => {
+    if (!newValue.trim()) return;
+    updateConfig({
+      ruleBlocks: currentRuleBlocks.map(b => {
+        if (b.id !== blockId) return b;
+        const newRules = [...b.rules];
+        newRules[ruleIndex] = newValue.trim();
+        return { ...b, rules: newRules };
+      }),
+    });
+    setEditingRule(null);
+  };
+
+  const handleDragStart = (e: React.DragEvent, blockId: string, index: number) => {
+    setDraggedItem({ blockId, index });
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, blockId: string, index: number) => {
+    e.preventDefault();
+    if (!draggedItem || draggedItem.blockId !== blockId || draggedItem.index === index) return;
+
+    const newRules = [...currentRuleBlocks.find(b => b.id === blockId)!.rules];
+    const [removed] = newRules.splice(draggedItem.index, 1);
+    newRules.splice(index, 0, removed);
+
+    updateConfig({
+      ruleBlocks: currentRuleBlocks.map(b => (b.id === blockId ? { ...b, rules: newRules } : b))
+    });
+
+    setDraggedItem({ blockId, index });
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent, blockId: string, index: number) => {
+    setDraggedItem({ blockId, index });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent, blockId: string) => {
+    if (!draggedItem || draggedItem.blockId !== blockId) return;
+
+    const touch = e.touches[0];
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!element) return;
+
+    const li = element.closest('li');
+    if (!li) return;
+
+    const indexAttr = li.getAttribute('data-index');
+    const targetBlockId = li.getAttribute('data-block-id');
+    if (indexAttr === null || targetBlockId !== blockId) return;
+
+    const targetIndex = parseInt(indexAttr, 10);
+    if (targetIndex === draggedItem.index) return;
+
+    const newRules = [...currentRuleBlocks.find(b => b.id === blockId)!.rules];
+    const [removed] = newRules.splice(draggedItem.index, 1);
+    newRules.splice(targetIndex, 0, removed);
+
+    updateConfig({
+      ruleBlocks: currentRuleBlocks.map(b => (b.id === blockId ? { ...b, rules: newRules } : b))
+    });
+
+    setDraggedItem({ blockId, index: targetIndex });
+  };
+
+  const handleTouchEnd = () => {
+    setDraggedItem(null);
+  };
+
   return (
     <div className="max-w-7xl mx-auto flex flex-col gap-8">
+      <div className="bg-sky-900/20 border border-sky-800/50 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
+        <div className="p-3 bg-sky-900/40 rounded-xl shrink-0">
+          <AlertCircle className="w-6 h-6 text-sky-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-1 gap-4">
+            <h2 className="text-lg font-bold text-sky-100">{config?.rulesCardTitle ?? 'Solicitação de Manutenção'}</h2>
+            {isRep && (
+              <button
+                onClick={() => setIsEditingDescription(true)}
+                className="p-2 bg-sky-900/40 hover:bg-sky-800/60 rounded-lg text-sky-300 transition-colors shrink-0"
+                title={t.editTexts || 'Editar Textos'}
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <p className="text-sky-300/80 text-sm leading-relaxed whitespace-pre-line text-justify">
+            {config?.rulesCardDescription ?? (config?.maintenanceDescription || t.maintenanceDefaultDesc)}
+          </p>
+        </div>
+      </div>
+
       {isRep && (
         <div className="flex justify-end">
           <button onClick={handleAddBlock} className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm border border-sky-500/50 flex items-center gap-2 transition-colors">
@@ -68,7 +178,7 @@ export function RulesTab({ config, isRep, updateConfig, currentRuleBlocks }: Rul
             )}
             <div className="w-full flex-1 bg-neutral-900 border-t border-neutral-700 relative overflow-hidden">
               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stucco.png')] opacity-20 pointer-events-none" />
-              <div className={`bg-white bg-[url('https://www.transparenttextures.com/patterns/stucco.png')] w-[92%] mx-auto mt-6 rounded-xl p-6 sm:p-8 shadow-lg border border-neutral-200 relative transform ${i % 2 === 0 ? 'rotate-[0.5deg]' : 'rotate-[-0.5deg]'}`}>
+              <div className="bg-white bg-[url('https://www.transparenttextures.com/patterns/stucco.png')] w-[92%] mx-auto mt-6 rounded-xl p-6 sm:p-8 shadow-lg border border-neutral-200 relative">
                 <div className="w-12 h-1.5 rounded-full bg-sky-500/80 absolute top-3 left-1/2 transform -translate-x-1/2 shadow-sm z-10" />
 
                 {editingBlockTitle === block.id ? (
@@ -101,15 +211,92 @@ export function RulesTab({ config, isRep, updateConfig, currentRuleBlocks }: Rul
                 )}
 
                 <ul className="space-y-4 relative z-10">
-                  {block.rules.map((rule, idx) => (
-                    <li key={`${block.id}-rule-${idx}-${rule.substring(0, 10)}`} className="flex items-center group/rule">
-                      <div className="bg-sky-100 p-1 rounded border border-sky-200 mr-4 shrink-0 shadow-sm"><CheckSquare className="h-4 w-4 text-sky-600" /></div>
-                      <span className="text-neutral-800 font-medium text-base md:text-lg leading-relaxed flex-1">{rule}</span>
-                      {isRep && (
-                       <button onClick={() => handleRemoveRule(block.id, idx)} className="opacity-0 group-hover/rule:opacity-100 text-red-500 hover:text-red-700 hover:bg-white border border-transparent hover:border-red-200 shadow-sm shrink-0 ml-3 p-2 rounded transition-all" title={t.removeRule}><Trash2 size={16} /></button>
-                      )}
-                    </li>
-                  ))}
+                  {block.rules.map((rule, idx) => {
+                    const isEditing = editingRule && editingRule.blockId === block.id && editingRule.index === idx;
+                    const isDraggingThis = draggedItem && draggedItem.blockId === block.id && draggedItem.index === idx;
+                    return (
+                      <li
+                        key={`${block.id}-rule-${idx}`}
+                        data-index={idx}
+                        data-block-id={block.id}
+                        draggable={isRep && !isEditing}
+                        onDragStart={e => handleDragStart(e, block.id, idx)}
+                        onDragOver={e => handleDragOver(e, block.id, idx)}
+                        onDragEnd={handleDragEnd}
+                        className={`flex items-start group/rule min-h-[40px] w-full p-1.5 rounded-lg transition-all duration-150 relative ${
+                          isRep ? 'pl-8 pr-[70px]' : 'pl-2 pr-2'
+                        } ${
+                          isDraggingThis ? 'opacity-40 bg-sky-50 border border-dashed border-sky-300' : 'hover:bg-neutral-50/30'
+                        }`}
+                      >
+                        {isRep && !isEditing && (
+                          <div
+                            onTouchStart={e => handleTouchStart(e, block.id, idx)}
+                            onTouchMove={e => handleTouchMove(e, block.id)}
+                            onTouchEnd={handleTouchEnd}
+                            style={{ touchAction: 'none' }}
+                            className="absolute left-1.5 top-[11px] text-neutral-400 hover:text-neutral-600 cursor-grab active:cursor-grabbing shrink-0 opacity-100 md:opacity-0 md:group-hover/rule:opacity-100 transition-opacity select-none"
+                          >
+                            <GripVertical size={16} />
+                          </div>
+                        )}
+                        <div className="bg-sky-100 p-1 rounded border border-sky-200 mr-3 shrink-0 shadow-sm mt-1">
+                          <CheckSquare className="h-4 w-4 text-sky-600" />
+                        </div>
+                        {isEditing ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <input
+                              type="text"
+                              value={editingRule.value}
+                              onChange={e => setEditingRule({ ...editingRule, value: e.target.value })}
+                              className="flex-1 text-neutral-800 border-b-2 border-sky-500 bg-transparent py-1 px-1 outline-none text-base md:text-lg leading-relaxed font-medium"
+                              autoFocus
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') handleUpdateRule(block.id, idx, editingRule.value);
+                                if (e.key === 'Escape') setEditingRule(null);
+                              }}
+                            />
+                            <button
+                              onClick={() => handleUpdateRule(block.id, idx, editingRule.value)}
+                              className="text-emerald-600 hover:text-emerald-700 p-2 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-100 shadow-sm bg-white"
+                              title={t.save}
+                            >
+                              <Check size={16} />
+                            </button>
+                            <button
+                              onClick={() => setEditingRule(null)}
+                              className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100 shadow-sm bg-white"
+                              title={t.cancel}
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-neutral-800 font-medium text-base md:text-lg leading-relaxed flex-1 text-justify">{renderFormattedText(rule)}</span>
+                            {isRep && (
+                              <div className="absolute right-1.5 top-1.5 flex items-center gap-1 shrink-0 transition-all opacity-100 md:opacity-0 md:group-hover/rule:opacity-100">
+                                <button
+                                  onClick={() => setEditingRule({ blockId: block.id, index: idx, value: rule })}
+                                  className="text-sky-600 hover:text-sky-700 hover:bg-white border border-neutral-200 shadow-sm p-1.5 rounded-md transition-colors bg-white"
+                                  title={t.edit}
+                                >
+                                  <Edit2 size={14} />
+                                </button>
+                                <button
+                                  onClick={() => handleRemoveRule(block.id, idx)}
+                                  className="text-red-500 hover:text-red-700 hover:bg-white border border-neutral-200 shadow-sm p-1.5 rounded-md transition-colors bg-white"
+                                  title={t.removeRule}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
 
                 {block.rules.length === 0 && !addingRuleToBlock && (
@@ -125,6 +312,98 @@ export function RulesTab({ config, isRep, updateConfig, currentRuleBlocks }: Rul
             </div>
           </div>
         ))}
+      </div>
+
+      {isEditingDescription && (
+        <RulesSettingsModal
+          config={config}
+          onClose={() => setIsEditingDescription(false)}
+          onSave={async (updates) => {
+            await updateConfig(updates);
+            setIsEditingDescription(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function RulesSettingsModal({
+  config,
+  onClose,
+  onSave
+}: {
+  config?: AppConfig;
+  onClose: () => void;
+  onSave: (updates: Partial<AppConfig>) => Promise<void>;
+}) {
+  const [title, setTitle] = useState(config?.rulesCardTitle ?? 'Solicitação de Manutenção');
+  const [description, setDescription] = useState(config?.rulesCardDescription ?? (config?.maintenanceDescription ?? 'Preencha os campos abaixo com os problemas encontrados na ala ou no seu quarto. Ao clicar em enviar, sua solicitação será registrada automaticamente e enviada para a administração providenciar os reparos.'));
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    await onSave({
+      rulesCardTitle: title,
+      rulesCardDescription: description
+    });
+    setIsSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
+        <div className="p-6 border-b border-neutral-800 flex justify-between items-center bg-neutral-900/50">
+          <h2 className="text-xl font-bold text-neutral-100 flex items-center gap-2">
+            <Pencil className="w-5 h-5 text-sky-400" />
+            Editar Textos da Aba
+          </h2>
+          <button onClick={onClose} className="text-neutral-400 hover:text-white transition-colors">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-neutral-300 mb-1">Título do Card</label>
+            <input
+              type="text"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-2 text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-neutral-300 mb-1">Descrição</label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-2 text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500/50 resize-none"
+              rows={4}
+              required
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-neutral-800">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-neutral-400 hover:text-white font-medium transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white px-6 py-2 rounded-xl font-medium transition-colors"
+            >
+              {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

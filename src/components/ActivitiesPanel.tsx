@@ -1,10 +1,9 @@
-import React from 'react';
-import { Wrench, Droplets, Refrigerator, ShoppingCart } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { Wrench, Droplets, Refrigerator, ShoppingCart, Loader2 } from 'lucide-react';
 import { deleteField } from 'firebase/firestore';
 import { AppConfig } from '../hooks/useWingConfig';
 import { useLang } from '../LanguageContext';
-
-const ROOMS = ['101', '102', '103', '104', '105', 'Coletivo'];
+import { ROOMS, ALL_ROOMS } from '../constants';
 
 interface ActivitiesPanelProps {
   config: AppConfig;
@@ -37,16 +36,22 @@ interface ActivityCardProps {
   onChange: (val: string) => void;
   responsibleLabel: string;
   roomLabel: (r: string) => string;
+  isSaving?: boolean;
 }
 
 function ActivityCard({
   colorBase, icon, title, description, textColor, bgColor, borderColor,
   selectBg, selectBorder, selectFocus, isRep, value, autoLabel, onChange,
-  responsibleLabel, roomLabel,
+  responsibleLabel, roomLabel, isSaving = false,
 }: ActivityCardProps) {
   return (
     <div className={`${bgColor} ${borderColor} rounded-xl p-4 shadow-sm relative overflow-hidden group`}>
       <div className={`absolute top-0 left-0 w-1 h-full ${colorBase}`} />
+      {isSaving && (
+        <div className="absolute top-2.5 right-2.5 z-10">
+          <Loader2 className={`w-4 h-4 ${textColor} animate-spin`} />
+        </div>
+      )}
       <div className="flex items-start gap-4">
         <div className={`${selectBg} p-2.5 rounded-lg shrink-0`}>{icon}</div>
         <div className="flex-1">
@@ -60,10 +65,11 @@ function ActivityCard({
               <select
                 value={value}
                 onChange={e => onChange(e.target.value)}
-                className={`w-full ${selectBg} ${selectBorder} rounded-md p-2 ${textColor} outline-none ${selectFocus} transition-colors`}
+                disabled={isSaving}
+                className={`w-full ${selectBg} ${selectBorder} rounded-md p-2 ${textColor} outline-none ${selectFocus} transition-colors ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <option value="">{autoLabel}</option>
-                {['101','102','103','104','105','Coletivo'].map(r => (
+                {ALL_ROOMS.map(r => (
                   <option key={r} value={r}>{roomLabel(r)}</option>
                 ))}
               </select>
@@ -92,6 +98,24 @@ export function ActivitiesPanel({
 }: ActivitiesPanelProps) {
   const { t } = useLang();
   const rl = (room: string, auto = false) => roomLabel(room, t, auto);
+
+  // ── Loading state individual por campo ─────────────────────────────────────
+  const [savingFields, setSavingFields] = useState<Set<string>>(new Set());
+
+  const handleFieldChange = useCallback((field: string, updater: () => void) => {
+    setSavingFields(prev => new Set(prev).add(field));
+    updater();
+  }, []);
+
+  // Quando o config atualiza (Firestore snapshot), limpa os saving states
+  const prevConfigRef = React.useRef(config);
+  React.useEffect(() => {
+    if (prevConfigRef.current !== config) {
+      setSavingFields(new Set());
+      prevConfigRef.current = config;
+    }
+  }, [config]);
+
   return (
     <div className="bg-neutral-800 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-neutral-700 overflow-hidden flex-1 flex flex-col">
       <div className="bg-neutral-800/80 px-5 py-4 border-b border-neutral-700 flex items-center space-x-2">
@@ -116,13 +140,14 @@ export function ActivitiesPanel({
           autoLabel={rl(currentCleaningResponsible, !config.cleaningResponsible)}
           responsibleLabel={t.responsibleRoom}
           roomLabel={rl}
-          onChange={val => {
-            if (val) updateConfig({ 
-              cleaningResponsible: deleteField() as any,
-              weeklyRotationOffset: calcWeeklyOffset(val) 
+          isSaving={savingFields.has('cleaning')}
+          onChange={val => handleFieldChange('cleaning', () => {
+            if (val) updateConfig({
+              cleaningResponsible: val,
+              weeklyRotationOffset: calcWeeklyOffset(val)
             });
             else updateConfig({ cleaningResponsible: deleteField() as any });
-          }}
+          })}
         />
 
         <ActivityCard
@@ -141,13 +166,14 @@ export function ActivitiesPanel({
           autoLabel={rl(currentMaintenanceResponsible, !config.maintenanceResponsible)}
           responsibleLabel={t.responsibleRoom}
           roomLabel={rl}
-          onChange={val => {
-            if (val) updateConfig({ 
-              maintenanceResponsible: deleteField() as any,
-              weeklyRotationOffset: calcWeeklyOffset(val) 
+          isSaving={savingFields.has('maintenance')}
+          onChange={val => handleFieldChange('maintenance', () => {
+            if (val) updateConfig({
+              maintenanceResponsible: val,
+              weeklyRotationOffset: calcWeeklyOffset(val)
             });
             else updateConfig({ maintenanceResponsible: deleteField() as any });
-          }}
+          })}
         />
 
         <ActivityCard
@@ -166,13 +192,14 @@ export function ActivitiesPanel({
           autoLabel={rl(currentFridgeResponsible, !config.fridgeCleaningResponsible)}
           responsibleLabel={t.responsibleRoom}
           roomLabel={rl}
-          onChange={val => {
-            if (val) updateConfig({ 
-              fridgeCleaningResponsible: deleteField() as any,
-              monthlyRotationOffset: calcMonthlyOffset(val) 
+          isSaving={savingFields.has('fridge')}
+          onChange={val => handleFieldChange('fridge', () => {
+            if (val) updateConfig({
+              fridgeCleaningResponsible: val,
+              monthlyRotationOffset: calcMonthlyOffset(val)
             });
             else updateConfig({ fridgeCleaningResponsible: deleteField() as any });
-          }}
+          })}
         />
 
         <ActivityCard
@@ -191,13 +218,14 @@ export function ActivitiesPanel({
           autoLabel={rl(currentBuyingProductsResponsible, !config.buyingProductsResponsible)}
           responsibleLabel={t.responsibleRoom}
           roomLabel={rl}
-          onChange={val => {
-            if (val) updateConfig({ 
-              buyingProductsResponsible: deleteField() as any,
-              monthlyRotationOffset: calcMonthlyOffset(val) 
+          isSaving={savingFields.has('products')}
+          onChange={val => handleFieldChange('products', () => {
+            if (val) updateConfig({
+              buyingProductsResponsible: val,
+              monthlyRotationOffset: calcMonthlyOffset(val)
             });
             else updateConfig({ buyingProductsResponsible: deleteField() as any });
-          }}
+          })}
         />
 
         {/* ── Quartos Ausentes ── */}
@@ -210,7 +238,7 @@ export function ActivitiesPanel({
             {isRep ? t.absentRoomsDescRep : t.absentRoomsDescResident}
           </p>
           <div className="flex flex-wrap gap-2">
-            {['101', '102', '103', '104', '105'].map(room => {
+            {ROOMS.map(room => {
               const isAbsent = absentRooms.includes(room);
               return (
                 <button

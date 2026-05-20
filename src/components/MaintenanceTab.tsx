@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wrench, Send, AlertCircle, Building2, Bed, Maximize, Pencil, X } from 'lucide-react';
+import { Wrench, Send, AlertCircle, Building2, Package, Maximize, Pencil, X } from 'lucide-react';
 import { AppConfig } from '../hooks/useWingConfig';
 import { useLang } from '../LanguageContext';
 
@@ -7,22 +7,33 @@ interface MaintenanceTabProps {
   config?: AppConfig;
   isAdmin?: boolean;
   updateConfig?: (updates: Partial<AppConfig>) => Promise<void>;
+  forceMode?: 'view' | 'edit';
 }
 
-export function MaintenanceTab({ config, isAdmin, updateConfig }: MaintenanceTabProps) {
+export function MaintenanceTab({ config, isAdmin, updateConfig, forceMode = 'view' }: MaintenanceTabProps) {
+  const { t, lang } = useLang();
   const [ala, setAla] = useState('');
   const [quarto, setQuarto] = useState('');
   const [comum, setComum] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const { t } = useLang();
+  const [isEditing, setIsEditing] = useState(forceMode === 'edit');
+  
+  const defField1 = 'Pendências na Ala (informe a Ala)';
+  const defField2 = 'Pendências no Quarto (informe o quarto)';
+  const defField3 = 'Manutenções nos Espaços em Comum';
+  const defDesc = 'Preencha os campos abaixo com os problemas encontrados na ala ou no seu quarto. Ao clicar em enviar, sua solicitação será registrada automaticamente e enviada para a administração providenciar os reparos.';
+
+  const displayField1 = lang === 'en' && (config?.maintenanceField1Title === defField1 || !config?.maintenanceField1Title) ? t.maintenanceField1 : (config?.maintenanceField1Title || t.maintenanceField1);
+  const displayField2 = lang === 'en' && (config?.maintenanceField2Title === defField2 || !config?.maintenanceField2Title) ? t.maintenanceField2 : (config?.maintenanceField2Title || t.maintenanceField2);
+  const displayField3 = lang === 'en' && (config?.maintenanceField3Title === defField3 || !config?.maintenanceField3Title) ? t.maintenanceField3 : (config?.maintenanceField3Title || t.maintenanceField3);
+  const displayDesc = lang === 'en' && (config?.maintenanceDescription === defDesc || !config?.maintenanceDescription) ? t.maintenanceDefaultDesc : (config?.maintenanceDescription || t.maintenanceDefaultDesc);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSuccess(false);
-    
+
     const formData = new URLSearchParams();
     if (ala.trim()) formData.append('ala', ala.trim());
     if (quarto.trim()) formData.append('quarto', quarto.trim());
@@ -70,7 +81,7 @@ export function MaintenanceTab({ config, isAdmin, updateConfig }: MaintenanceTab
             )}
           </div>
           <p className="text-sky-300/80 text-sm leading-relaxed">
-            {config?.maintenanceDescription || t.maintenanceDefaultDesc}
+            {displayDesc}
           </p>
         </div>
       </div>
@@ -79,7 +90,7 @@ export function MaintenanceTab({ config, isAdmin, updateConfig }: MaintenanceTab
         <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-2xl p-6 shadow-sm focus-within:border-sky-500/50 transition-colors">
           <label htmlFor="ala" className="flex items-center gap-2 text-sm font-semibold text-neutral-300 mb-3">
             <Building2 className="w-4 h-4 text-sky-400" />
-            {config?.maintenanceField1Title || t.maintenanceField1}
+            {displayField1}
           </label>
           <textarea
             id="ala"
@@ -93,8 +104,8 @@ export function MaintenanceTab({ config, isAdmin, updateConfig }: MaintenanceTab
 
         <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-2xl p-6 shadow-sm focus-within:border-emerald-500/50 transition-colors">
           <label htmlFor="quarto" className="flex items-center gap-2 text-sm font-semibold text-neutral-300 mb-3">
-            <Bed className="w-4 h-4 text-emerald-400" />
-            {config?.maintenanceField2Title || t.maintenanceField2}
+            <Wrench className="w-4 h-4 text-sky-400" />
+            {displayField2}
           </label>
           <textarea
             id="quarto"
@@ -108,8 +119,8 @@ export function MaintenanceTab({ config, isAdmin, updateConfig }: MaintenanceTab
 
         <div className="bg-neutral-800/50 border border-neutral-700/50 rounded-2xl p-6 shadow-sm focus-within:border-amber-500/50 transition-colors">
           <label htmlFor="comum" className="flex items-center gap-2 text-sm font-semibold text-neutral-300 mb-3">
-            <Maximize className="w-4 h-4 text-amber-400" />
-            {config?.maintenanceField3Title || t.maintenanceField3}
+            <Package className="w-4 h-4 text-sky-400" />
+            {displayField3}
           </label>
           <textarea
             id="comum"
@@ -129,13 +140,10 @@ export function MaintenanceTab({ config, isAdmin, updateConfig }: MaintenanceTab
         )}
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
-          <p className="text-xs text-neutral-500 text-center sm:text-left leading-relaxed max-w-md">
-            {t.corsWarning}
-          </p>
           <button
             type="submit"
             disabled={(!ala.trim() && !quarto.trim() && !comum.trim()) || isSubmitting}
-            className="flex items-center gap-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-sm w-full sm:w-auto justify-center shrink-0"
+            className="flex items-center gap-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-sm w-full sm:w-auto justify-center shrink-0 ml-auto"
           >
             <Send className="w-5 h-5" />
             {isSubmitting ? t.sending : t.send}

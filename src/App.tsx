@@ -91,11 +91,31 @@ const THEMES = [
 ];
 
 // ── Lazy-loaded tabs (carregadas apenas quando acessadas) ────────────────────
-const RulesTab = lazy(() => import('./components/RulesTab').then(m => ({ default: m.RulesTab })));
-const GeneralRulesTab = lazy(() => import('./components/GeneralRulesTab').then(m => ({ default: m.GeneralRulesTab })));
-const LinksTab = lazy(() => import('./components/LinksTab').then(m => ({ default: m.LinksTab })));
-const ProductsTab = lazy(() => import('./ProductsTab').then(m => ({ default: m.ProductsTab })));
-const MaintenanceTab = lazy(() => import('./components/MaintenanceTab').then(m => ({ default: m.MaintenanceTab })));
+function lazyWithRetry<T extends React.ComponentType<any>>(componentImport: () => Promise<{ default: T }>) {
+  return lazy(async () => {
+    const pageHasAlreadyBeenForceRefreshed = JSON.parse(
+      window.sessionStorage.getItem('page-has-been-force-refreshed') || 'false'
+    );
+    try {
+      const component = await componentImport();
+      window.sessionStorage.setItem('page-has-been-force-refreshed', 'false');
+      return component;
+    } catch (error) {
+      if (!pageHasAlreadyBeenForceRefreshed) {
+        window.sessionStorage.setItem('page-has-been-force-refreshed', 'true');
+        window.location.reload();
+        return new Promise<{ default: T }>(() => {});
+      }
+      throw error;
+    }
+  });
+}
+
+const RulesTab = lazyWithRetry(() => import('./components/RulesTab').then(m => ({ default: m.RulesTab })));
+const GeneralRulesTab = lazyWithRetry(() => import('./components/GeneralRulesTab').then(m => ({ default: m.GeneralRulesTab })));
+const LinksTab = lazyWithRetry(() => import('./components/LinksTab').then(m => ({ default: m.LinksTab })));
+const ProductsTab = lazyWithRetry(() => import('./ProductsTab').then(m => ({ default: m.ProductsTab })));
+const MaintenanceTab = lazyWithRetry(() => import('./components/MaintenanceTab').then(m => ({ default: m.MaintenanceTab })));
 
 /** Loading fallback para tabs lazy-loaded */
 function TabLoading() {

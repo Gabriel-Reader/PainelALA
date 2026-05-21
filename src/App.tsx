@@ -232,11 +232,28 @@ function AppContent({
 }) {
   const handleSignOut = () => signOut(auth);
 
+  const isGabriel = user?.email === 'gabrielpinheiro632@gmail.com';
+  const realRole = isGabriel ? 'dev' : profile.role;
+
   const [activeThemeKey, setActiveThemeKey] = useState<string>(
     () => localStorage.getItem('app_theme_key') || 'ocean'
   );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [activeView, setActiveView] = useState<string>(profile.role);
+  
+  const [activeView, setActiveView] = useState<string>(() => {
+    const saved = localStorage.getItem(`painel_active_view_${user.uid}`);
+    if (saved) {
+      if (realRole === 'resident') return 'resident';
+      if (realRole === 'representative' && saved === 'dev') return 'representative';
+      return saved;
+    }
+    return realRole;
+  });
+
+  const handleSetActiveView = (val: string) => {
+    setActiveView(val);
+    localStorage.setItem(`painel_active_view_${user.uid}`, val);
+  };
 
   const activeTheme = THEMES.find(t => t.key === activeThemeKey) || THEMES[0];
 
@@ -484,9 +501,6 @@ function AppContent({
       setViewDate(new Date(md.getFullYear(), md.getMonth(), 1));
     }
   }, [mockDateStr]);
-
-  const isGabriel = user?.email === 'gabrielpinheiro632@gmail.com';
-  const realRole = isGabriel ? 'dev' : profile.role;
   
   const isRep = activeView === 'representative' || activeView === 'dev';
   const isDev = activeView === 'dev';
@@ -846,7 +860,7 @@ function AppContent({
                       {canChangeView && (
                         <div>
                           <label className="text-[10px] uppercase font-bold tracking-wider text-sky-400 mb-2 block">{t.viewMode}</label>
-                          <select value={activeView} onChange={(e) => setActiveView(e.target.value)}
+                          <select value={activeView} onChange={(e) => handleSetActiveView(e.target.value)}
                             className="w-full bg-black/20 text-white border border-white/10 rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none focus:border-sky-500 transition-colors appearance-none cursor-pointer">
                             <option value="resident" className="text-black">{t.visionResident}</option>
                             <option value="representative" className="text-black">{t.visionRep}</option>

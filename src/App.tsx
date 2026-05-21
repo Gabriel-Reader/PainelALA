@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
 import { CalendarDays, ClipboardList, Settings, LogOut, Pencil, Languages, CheckSquare, BookOpen, Link2, Package, Wrench, Loader2, Palette, Users } from 'lucide-react';
-import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { deleteField, doc, updateDoc, getDoc, getDocFromCache, getDocFromServer } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { useWingConfig } from './hooks/useWingConfig';
@@ -131,7 +131,18 @@ export default function App() {
   const { config, updateConfig, loading, profileLoading, user, authLoading, profile, saveError, clearSaveError, saveWeeklySnapshot } = useWingConfig();
   const { lang, setLang, t } = useLang();
 
-  const handleSignIn = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(console.error);
+  const handleSignIn = async () => {
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+    } catch (error: any) {
+      if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+        // Fallback para redirect se o popup for bloqueado pelo navegador
+        await signInWithRedirect(auth, new GoogleAuthProvider());
+      } else {
+        console.error("Login error:", error);
+      }
+    }
+  };
 
   // 1. Mostra spinner enquanto o estado do Firebase Auth está inicializando (evita flash da tela de login)
   // 2. Ou quando a config/profile de rede estão sendo carregadas pela primeira vez (se não houver cache)

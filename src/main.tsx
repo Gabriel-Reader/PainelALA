@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
@@ -21,6 +22,16 @@ if (import.meta.env.DEV) {
   console.log = filterLogs(console.log);
   console.warn = filterLogs(console.warn);
   console.info = filterLogs(console.info);
+} else {
+  // Em produção, se houver erro ao carregar um chunk do Vite (novo deploy), recarrega a página
+  window.addEventListener('vite:preloadError', (event) => {
+    const isRefreshed = sessionStorage.getItem('vite-preload-refreshed');
+    if (!isRefreshed) {
+      sessionStorage.setItem('vite-preload-refreshed', 'true');
+      console.warn('Vite preload error detected. Forcing page reload...');
+      window.location.reload();
+    }
+  });
 }
 
 createRoot(document.getElementById('root')!).render(

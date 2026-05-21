@@ -103,7 +103,7 @@ export function UsersTab() {
                   <th className="px-4 py-3 font-semibold">{t.userEmail}</th>
                   <th className="px-4 py-3 font-semibold">{t.userRole}</th>
                   <th className="px-4 py-3 font-semibold">{t.userJoined}</th>
-                  <th className="px-4 py-3 font-semibold text-right">{t.actions}</th>
+                  <th className="px-4 py-3 font-semibold text-right sticky right-0 bg-black/40 backdrop-blur-md shadow-[-4px_0_10px_rgba(0,0,0,0.1)] z-10">{t.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-800/60">
@@ -135,7 +135,7 @@ export function UsersTab() {
                         {formatDate(u.createdAt)}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right sticky right-0 bg-neutral-900/90 backdrop-blur-md shadow-[-4px_0_10px_rgba(0,0,0,0.1)] z-10">
                       <button
                         onClick={() => { setUserToDelete(u); setDeleteModalOpen(true); }}
                         className="p-1.5 text-neutral-500 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors"

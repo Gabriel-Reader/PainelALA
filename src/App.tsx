@@ -788,16 +788,16 @@ function AppContent({
           </div>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {isDev && (
-              <div className="flex items-center gap-2 bg-black/10 hover:bg-black/20 transition-colors px-3 py-2 rounded-lg border border-white/5">
-                <label htmlFor="mockDate" className="text-[10px] uppercase font-bold tracking-wider text-sky-300">{t.testDay}</label>
+              <div className="flex items-center gap-1 sm:gap-2 bg-black/10 hover:bg-black/20 transition-colors px-1.5 sm:px-3 py-1 sm:py-2 rounded-lg border border-white/5">
+                <label htmlFor="mockDate" className="hidden sm:block text-[10px] uppercase font-bold tracking-wider text-sky-300">{t.testDay}</label>
                 <input type="date" id="mockDate" value={mockDateStr} onChange={e => setMockDateStr(e.target.value)}
-                  className="bg-transparent text-white border-none rounded p-0 text-sm focus:outline-none focus:ring-0 [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert" />
+                  className="bg-transparent text-white border-none rounded p-0 text-xs sm:text-sm focus:outline-none focus:ring-0 [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert" />
               </div>
             )}
-            <div className="relative h-9">
+            <div className="relative h-8 sm:h-9">
               <button
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                className="flex items-center gap-2 h-full bg-black/10 hover:bg-black/20 text-white border border-white/5 px-3 py-2 rounded-lg transition-colors text-sm font-medium"
+                className="flex items-center gap-2 h-full bg-black/10 hover:bg-black/20 text-white border border-white/5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors text-sm font-medium"
                 title={t.settings}
               >
                 <Settings size={18} className="text-[var(--theme-primary)]" />
@@ -985,12 +985,12 @@ function AppContent({
           <UsersTab />
         )}
       </main>
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-neutral-900/95 backdrop-blur-md border-t border-neutral-700/80 shadow-[0_-4px_24px_-4px_rgba(0,0,0,0.6)] flex">
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-neutral-900/95 backdrop-blur-md border-t border-neutral-700/80 shadow-[0_-4px_24px_-4px_rgba(0,0,0,0.6)] flex overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
         {NAV_TABS.map(tab => {
           const isActive = activeTab === tab.key;
           return (
             <button key={tab.key} onClick={() => handleSetActiveTab(tab.key)}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 px-0.5 transition-all duration-200 relative ${isActive ? 'text-[var(--theme-primary)]' : 'text-neutral-500 hover:text-neutral-300'}`}>
+              className={`min-w-[72px] shrink-0 flex-1 flex flex-col items-center justify-center gap-1 py-3 px-1 transition-all duration-200 relative ${isActive ? 'text-[var(--theme-primary)]' : 'text-neutral-500 hover:text-neutral-300'}`}>
               {isActive && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-[var(--theme-primary)]" />}
               <span className={`transition-transform duration-200 ${isActive ? 'scale-110' : 'scale-100'}`}>{tab.icon}</span>
               <span className="text-[9px] font-semibold leading-tight text-center whitespace-pre-line">{tab.mobileLabel}</span>

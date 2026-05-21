@@ -62,6 +62,8 @@ export function CalendarSection({
     { key: 'coletivo',    label: t.calendarModes.coletivo,      active: 'bg-purple-600/80' },
   ];
 
+  const isCurrentMonthView = viewDate.getMonth() === today.getMonth() && viewDate.getFullYear() === today.getFullYear();
+
   return (
     <div className="lg:col-span-9 bg-neutral-800 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-neutral-700 overflow-hidden flex flex-col">
       {/* Header */}
@@ -74,7 +76,10 @@ export function CalendarSection({
           </div>
           <div className="flex items-center gap-1.5">
             <button onClick={handlePrevMonth} className="p-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300">{'<'}</button>
-            <span className="text-xs sm:text-sm font-medium text-neutral-400 capitalize whitespace-nowrap text-center">{currentMonth}</span>
+            <span className="text-xs sm:text-sm font-medium text-neutral-400 capitalize whitespace-nowrap text-center flex items-center gap-1">
+              {currentMonth}
+              {isCurrentMonthView && <span className="text-sky-400 font-bold text-[10px] uppercase bg-sky-900/30 px-1.5 py-0.5 rounded">{lang === 'en' ? 'Current' : 'Atual'}</span>}
+            </span>
             <button onClick={handleNextMonth} className="p-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-300">{'>'}</button>
           </div>
         </div>

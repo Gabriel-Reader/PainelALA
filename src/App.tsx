@@ -102,9 +102,11 @@ function lazyWithRetry<T extends React.ComponentType<any>>(componentImport: () =
       return component;
     } catch (error) {
       if (!pageHasAlreadyBeenForceRefreshed) {
-        window.sessionStorage.setItem('page-has-been-force-refreshed', 'true');
-        window.location.reload();
-        return new Promise<{ default: T }>(() => {});
+        if (window.confirm('Uma nova atualização do sistema foi publicada. Para acessar esta aba, é necessário recarregar a página. Recarregar agora?')) {
+          window.sessionStorage.setItem('page-has-been-force-refreshed', 'true');
+          window.location.reload();
+          return new Promise<{ default: T }>(() => {});
+        }
       }
       throw error;
     }

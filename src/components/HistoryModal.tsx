@@ -79,7 +79,7 @@ export function HistoryModal({ onClose, today, isDev }: HistoryModalProps) {
         querySnapshot.forEach((docSnap) => {
           const docData = docSnap.data() as HistoryRecord;
           // Exibe apenas registros semanais (ignora backups diários de produtos)
-          if (docData.type === 'weekly' || !(docData as any).type) {
+          if ((docData as any).type === 'weekly' || !(docData as any).type) {
             data.push(docData);
           }
         });

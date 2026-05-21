@@ -25,11 +25,14 @@ if (import.meta.env.DEV) {
 } else {
   // Em produção, se houver erro ao carregar um chunk do Vite (novo deploy), recarrega a página
   window.addEventListener('vite:preloadError', (event) => {
+    event.preventDefault();
     const isRefreshed = sessionStorage.getItem('vite-preload-refreshed');
     if (!isRefreshed) {
-      sessionStorage.setItem('vite-preload-refreshed', 'true');
-      console.warn('Vite preload error detected. Forcing page reload...');
-      window.location.reload();
+      if (window.confirm('Uma nova atualização do sistema foi publicada. Para acessar todos os recursos, é necessário recarregar a página. Recarregar agora?')) {
+        sessionStorage.setItem('vite-preload-refreshed', 'true');
+        console.warn('Vite preload error detected. Forcing page reload...');
+        window.location.reload();
+      }
     }
   });
 }

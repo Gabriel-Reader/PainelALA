@@ -19,19 +19,26 @@ export function InstallPrompt() {
     const isApple = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isApple);
 
-    // Listen for Android beforeinstallprompt
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      if (!isStandAloneMatch) {
-        // Only show if user hasn't dismissed it this session
-        if (!sessionStorage.getItem('pwaPromptDismissed')) {
+    const handlePromptReady = () => {
+      const e = (window as any).pwaDeferredPrompt;
+      if (e) {
+        setDeferredPrompt(e);
+        if (!isStandAloneMatch && !sessionStorage.getItem('pwaPromptDismissed')) {
           setShow(true);
         }
       }
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    // Check if it already fired before React mounted
+    handlePromptReady();
+
+    // Listen for the custom event or native event just in case
+    window.addEventListener('pwa-prompt-ready', handlePromptReady);
+    window.addEventListener('beforeinstallprompt', (e: any) => {
+      e.preventDefault();
+      (window as any).pwaDeferredPrompt = e;
+      handlePromptReady();
+    });
 
     // If iOS and not standalone, show the custom banner
     if (isApple && !isStandAloneMatch && !sessionStorage.getItem('pwaPromptDismissed')) {
@@ -40,7 +47,7 @@ export function InstallPrompt() {
     }
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('pwa-prompt-ready', handlePromptReady);
     };
   }, []);
 

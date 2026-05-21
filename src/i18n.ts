@@ -192,6 +192,12 @@ export const translations = {
     roleUpdated: 'Cargo atualizado com sucesso!',
     userDeleted: 'Usuário excluído com sucesso!',
 
+    // PWA Install
+    installApp: 'Instalar Aplicativo',
+    installDesc: 'Instale o Painel da Ala para acesso rápido e melhor experiência.',
+    installButton: 'Instalar',
+    installIOSDesc: 'Para instalar no iPhone, toque em Compartilhar e depois "Adicionar à Tela de Início".',
+
     // Alert messages
     maintenanceOnlyTueThu: 'A Manutenção só pode ser agendada entre Terça e Quinta-feira.',
     roleChangeError: 'Erro ao alterar cargo. Verifique sua conexão e permissões.',
@@ -387,6 +393,12 @@ export const translations = {
     deleteUserConfirm: 'Are you sure you want to delete the record for {email}? They will lose all current access.',
     roleUpdated: 'Role successfully updated!',
     userDeleted: 'User successfully deleted!',
+
+    // PWA Install
+    installApp: 'Install App',
+    installDesc: 'Install the Wing Panel for quick access and better experience.',
+    installButton: 'Install',
+    installIOSDesc: 'To install on iPhone, tap Share then "Add to Home Screen".',
 
     // Alert messages
     maintenanceOnlyTueThu: 'Maintenance can only be scheduled between Tuesday and Thursday.',

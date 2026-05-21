@@ -12,6 +12,7 @@ import { PromptModal } from './components/PromptModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { ToastContainer, showToast } from './components/Toast';
 import { UsersTab } from './components/UsersTab';
+import { InstallPrompt } from './components/InstallPrompt';
 import { useLang } from './LanguageContext';
 import { ROOMS } from './constants';
 import { getWeekNumber, EPOCH_REFERENCE_DATE } from './utils/date';
@@ -1003,6 +1004,7 @@ function AppContent({
       {promptConfig?.isOpen && (
         <PromptModal title={promptConfig.title} initialValue={promptConfig.initialValue} onSave={(val) => { promptConfig.onSave(val); setPromptConfig(null); }} onClose={() => setPromptConfig(null)} />
       )}
+      <InstallPrompt />
     </div>
   );
 }

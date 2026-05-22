@@ -822,7 +822,7 @@ function AppContent({
               {config.appSubtitle || t.appSubtitle}
             </p>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0 relative">
             {isDev && (
               <div className="flex items-center gap-1 sm:gap-2 bg-black/10 hover:bg-black/20 transition-colors px-1.5 sm:px-3 py-1 sm:py-2 rounded-lg border border-white/5">
                 <label htmlFor="mockDate" className="hidden sm:block text-[10px] uppercase font-bold tracking-wider text-sky-300">{t.testDay}</label>
@@ -838,17 +838,30 @@ function AppContent({
               >
                 <Settings size={18} className="text-[var(--theme-primary)]" />
               </button>
-              
-              {isSettingsOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsSettingsOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-64 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl z-50 py-2 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-100">
-                    <div className="px-4 py-2 border-b border-neutral-800/60 flex items-center gap-2">
-                      <Settings size={14} className="text-neutral-400" />
-                      <span className="text-xs font-bold text-neutral-300 uppercase tracking-wider">{t.settings}</span>
-                    </div>
-                    
-                    <div className="p-3 space-y-4 max-h-[80vh] overflow-y-auto">
+            </div>
+            <div className="flex items-center gap-1 sm:gap-3 bg-black/10 hover:bg-black/20 transition-colors px-2 sm:px-3 py-1.5 rounded-lg border border-white/5 max-w-[160px] sm:max-w-none">
+              <div className="text-right flex flex-col justify-center min-w-0">
+                <span className="text-xs sm:text-sm font-bold leading-none mb-1 truncate">{user.displayName?.split(' ')[0] || user.email}</span>
+                <span className="text-[8px] sm:text-[9px] uppercase font-semibold text-white/60 tracking-wider leading-none truncate">
+                  {activeView === 'resident' ? t.roleResident : activeView === 'representative' ? t.roleRep : t.roleDev}
+                </span>
+              </div>
+              <div className="w-px h-6 bg-white/10 mx-1 shrink-0"></div>
+              <button onClick={handleSignOut} title={t.signOut} className="text-white/80 hover:text-white transition-colors shrink-0">
+                <LogOut size={18} />
+              </button>
+            </div>
+
+            {isSettingsOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsSettingsOpen(false)} />
+                <div className="absolute right-0 top-[calc(100%+0.5rem)] w-[calc(100vw-2rem)] sm:w-64 max-w-[20rem] sm:max-w-none bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl z-50 py-2 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-100">
+                  <div className="px-4 py-2 border-b border-neutral-800/60 flex items-center gap-2">
+                    <Settings size={14} className="text-neutral-400" />
+                    <span className="text-xs font-bold text-neutral-300 uppercase tracking-wider">{t.settings}</span>
+                  </div>
+                  
+                  <div className="p-3 space-y-4 max-h-[80vh] overflow-y-auto">
                       {/* Language */}
                       <div>
                         <label className="text-[10px] uppercase font-bold tracking-wider text-sky-400 mb-2 block">{t.language}</label>
@@ -910,23 +923,10 @@ function AppContent({
                           })}
                         </div>
                       </div>
-                    </div>
                   </div>
-                </>
-              )}
-            </div>
-            <div className="flex items-center gap-1 sm:gap-3 bg-black/10 hover:bg-black/20 transition-colors px-2 sm:px-3 py-1.5 rounded-lg border border-white/5">
-              <div className="text-right flex flex-col justify-center">
-                <span className="text-xs sm:text-sm font-bold leading-none mb-1">{user.displayName?.split(' ')[0] || user.email}</span>
-                <span className="text-[8px] sm:text-[9px] uppercase font-semibold text-white/60 tracking-wider leading-none">
-                  {activeView === 'resident' ? t.roleResident : activeView === 'representative' ? t.roleRep : t.roleDev}
-                </span>
-              </div>
-              <div className="w-px h-6 bg-white/10 mx-1"></div>
-              <button onClick={handleSignOut} title={t.signOut} className="text-white/80 hover:text-white transition-colors">
-                <LogOut size={18} />
-              </button>
-            </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
         <div className="max-w-7xl mx-auto hidden sm:flex overflow-x-auto px-4 sm:px-6 lg:px-8" style={{ scrollbarWidth: 'none' }}>
@@ -1026,7 +1026,7 @@ function AppContent({
           const isActive = activeTab === tab.key;
           return (
             <button key={tab.key} onClick={() => handleSetActiveTab(tab.key)}
-              className={`min-w-[72px] shrink-0 flex-1 flex flex-col items-center justify-center gap-1 py-3 px-1 transition-all duration-200 relative ${isActive ? 'text-[var(--theme-primary)]' : 'text-neutral-500 hover:text-neutral-300'}`}>
+              className={`min-w-0 min-w-[50px] shrink flex-1 flex flex-col items-center justify-center gap-1 py-3 px-0.5 transition-all duration-200 relative ${isActive ? 'text-[var(--theme-primary)]' : 'text-neutral-500 hover:text-neutral-300'}`}>
               {isActive && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-[var(--theme-primary)]" />}
               <span className={`transition-transform duration-200 ${isActive ? 'scale-110' : 'scale-100'}`}>{tab.icon}</span>
               <span className="text-[9px] font-semibold leading-tight text-center whitespace-pre-line">{tab.mobileLabel}</span>

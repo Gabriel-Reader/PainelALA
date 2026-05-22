@@ -104,12 +104,12 @@ export function CalendarSection({
       </div>
 
       {/* Calendar Grid */}
-      <div className="p-5 bg-neutral-900/50 flex-1 relative overflow-hidden text-neutral-200 min-h-[500px]">
-        <div className="p-4 bg-neutral-950/50 rounded-xl shadow-inner border border-neutral-800 h-full flex flex-col">
+      <div className="p-2 sm:p-5 bg-neutral-900/50 flex-1 relative overflow-hidden text-neutral-200 min-h-[300px] sm:min-h-[500px]">
+        <div className="p-2 sm:p-4 bg-neutral-950/50 rounded-xl shadow-inner border border-neutral-800 h-full flex flex-col">
           <div className="grid grid-cols-7 gap-px bg-neutral-800 rounded overflow-hidden flex-1 border border-neutral-800">
             {/* Headers */}
             {t.weekDays.map(day => (
-              <div key={day} className="bg-neutral-900 text-center py-3 text-sm font-semibold text-neutral-500 border-b border-neutral-800 uppercase tracking-widest">
+              <div key={day} className="bg-neutral-900 text-center py-1.5 sm:py-3 text-xs sm:text-sm font-semibold text-neutral-500 border-b border-neutral-800 uppercase tracking-widest">
                 {day}
               </div>
             ))}
@@ -120,7 +120,7 @@ export function CalendarSection({
               const isCurrentMonth = dayNumber > 0 && dayNumber <= daysInMonth;
 
               if (!isCurrentMonth) {
-                return <div key={`empty-${i}`} className="bg-neutral-900/80 p-1 sm:p-2 min-h-[4rem] sm:min-h-[5.5rem] opacity-50" />;
+                return <div key={`empty-${i}`} className="bg-neutral-900/80 p-1 sm:p-2 min-h-[3.25rem] sm:min-h-[5.5rem] opacity-50" />;
               }
 
               const { dayTasks } = getFinalDaysAndTasks(viewDate.getFullYear(), viewDate.getMonth(), dayNumber);
@@ -130,11 +130,11 @@ export function CalendarSection({
                 <div
                   key={`day-${dayNumber}`}
                   onClick={() => handleDayClick(dayNumber)}
-                  className={`bg-neutral-900/60 p-1.5 sm:p-2 min-h-[4rem] sm:min-h-[5.5rem] relative transition-colors ${
+                  className={`bg-neutral-900/60 p-1 sm:p-2 min-h-[3.25rem] sm:min-h-[5.5rem] relative transition-colors ${
                     isMockToday ? 'border-2 border-emerald-500/50 z-10' : 'border-t border-l border-neutral-800'
                   } cursor-pointer hover:bg-neutral-800 group`}
                 >
-                  <span className={`flex items-center justify-center w-5 h-5 rounded-full text-xs sm:text-sm font-medium transition-colors ${
+                  <span className={`flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full text-[10px] sm:text-sm font-medium transition-colors ${
                     isMockToday ? 'bg-emerald-500 text-neutral-950 font-bold' : dayTasks.length > 0 ? 'text-neutral-300' : 'text-neutral-600 group-hover:text-neutral-400'
                   }`}>
                     {dayNumber}

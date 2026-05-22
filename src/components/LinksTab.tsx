@@ -124,13 +124,11 @@ export function LinksTab({ links, isAdmin, updateConfig }: LinksTabProps) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {isAdmin && (
-        <div className="flex justify-end">
-          <button onClick={openAdd} className="flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm">
-            <Plus size={18} /> {t.addLink}
-          </button>
-        </div>
-      )}
+      <div className="flex justify-end">
+        <button onClick={openAdd} className="flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm">
+          <Plus size={18} /> {t.addLink}
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {currentLinks.map(link => {
@@ -156,16 +154,14 @@ export function LinksTab({ links, isAdmin, updateConfig }: LinksTabProps) {
               </div>
               
               <div className="flex items-center gap-1 sm:gap-3 shrink-0 z-20">
-                {isAdmin && (
-                  <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity bg-neutral-800/80 md:bg-transparent rounded-lg p-0.5 md:p-0">
-                    <button onClick={(e) => openEdit(link, e)} className="p-1.5 md:p-2 text-neutral-400 hover:text-sky-400 hover:bg-neutral-700 rounded transition-colors" title={t.edit}>
-                      <Pencil size={18} className="md:w-4 md:h-4" />
-                    </button>
-                    <button onClick={(e) => openDeleteModal(link.id, e)} className="p-1.5 md:p-2 text-neutral-400 hover:text-red-400 hover:bg-neutral-700 rounded transition-colors" title={t.delete}>
-                      <Trash2 size={18} className="md:w-4 md:h-4" />
-                    </button>
-                  </div>
-                )}
+                <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity bg-neutral-800/80 md:bg-transparent rounded-lg p-0.5 md:p-0">
+                  <button onClick={(e) => openEdit(link, e)} className="p-1.5 md:p-2 text-neutral-400 hover:text-sky-400 hover:bg-neutral-700 rounded transition-colors" title={t.edit}>
+                    <Pencil size={18} className="md:w-4 md:h-4" />
+                  </button>
+                  <button onClick={(e) => openDeleteModal(link.id, e)} className="p-1.5 md:p-2 text-neutral-400 hover:text-red-400 hover:bg-neutral-700 rounded transition-colors" title={t.delete}>
+                    <Trash2 size={18} className="md:w-4 md:h-4" />
+                  </button>
+                </div>
                 <ExternalLink className={`w-4 h-4 sm:w-5 sm:h-5 text-neutral-500 ${colors.hoverText} transition-colors shrink-0`} />
               </div>
             </a>

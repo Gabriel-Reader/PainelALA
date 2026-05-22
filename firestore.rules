@@ -20,6 +20,10 @@ service cloud.firestore {
       );
     }
 
+    function isValidLinkOnlyUpdate(inc, ext) {
+      return inc.diff(ext).affectedKeys().hasOnly(['links', 'updatedAt']);
+    }
+
     // --- Users ---
     function isValidUserCreate(data) {
       return data.keys().hasAll(['email', 'role', 'createdAt']) &&
@@ -114,7 +118,7 @@ service cloud.firestore {
     match /config/{configId} {
       allow read: if isSignedIn();
       allow create: if isAdmin() && isValidId(configId) && isValidAppConfig(incoming());
-      allow update: if isAdmin() && isValidId(configId) && isValidAppConfig(incoming()) && isValidAppConfigUpdate(incoming(), existing());
+      allow update: if (isAdmin() || (isVerified() && isValidLinkOnlyUpdate(incoming(), existing()))) && isValidId(configId) && isValidAppConfig(incoming()) && isValidAppConfigUpdate(incoming(), existing());
     }
 
     // --- History (weekly snapshots) ---

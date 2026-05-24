@@ -15,7 +15,7 @@ import { UsersTab } from './components/UsersTab';
 import { InstallPrompt } from './components/InstallPrompt';
 import { useLang } from './LanguageContext';
 import { ROOMS } from './constants';
-import { getWeekNumber, EPOCH_REFERENCE_DATE } from './utils/date';
+import { getWeekNumber, EPOCH_REFERENCE_DATE, getEffectiveOffset } from './utils/date';
 
 const THEMES = [
   {
@@ -237,6 +237,15 @@ function AppContent({
   const isGabriel = user?.email === 'gabrielpinheiro632@gmail.com';
   const realRole = isGabriel ? 'dev' : profile.role;
 
+  // Temporary migration
+  React.useEffect(() => {
+    if (config && user && config.monthlyRotationOffset === 4 && !config.monthlyOffsets) {
+      updateConfig({
+        monthlyOffsets: { '2026-05': 0 }
+      });
+    }
+  }, [config?.monthlyRotationOffset, config?.monthlyOffsets, user]);
+
   const [activeThemeKey, setActiveThemeKey] = useState<string>(
     () => localStorage.getItem('app_theme_key') || 'ocean'
   );
@@ -297,25 +306,20 @@ function AppContent({
       weekNumber -= past.length;
     }
     const rot = ['101', '102', '103', '104', '105'];
-    const wo = config?.weeklyRotationOffset ?? 0;
-    const mo = config?.monthlyRotationOffset ?? 0;
+    const weekKeyStr = `W${year}-${String(weekNumber).padStart(2, '0')}`;
+    const monthKeyStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+    const wo = getEffectiveOffset(config?.weeklyOffsets, weekKeyStr, config?.weeklyRotationOffset ?? 0);
+    const mo = getEffectiveOffset(config?.monthlyOffsets, monthKeyStr, config?.monthlyRotationOffset ?? 0);
     const absent = config?.absentRooms || [];
     
-    // Check if target date is today or in the future
-    const isFutureOrToday = d.getTime() >= new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0).getTime();
-
-    // Semanal — pula quartos ausentes (SOMENTE NO FUTURO)
+    // Semanal — pula quartos ausentes
     let wi = ((weekNumber + 3 + wo) % rot.length + rot.length) % rot.length;
-    if (isFutureOrToday) {
-      for (let t = 0; t < rot.length && absent.includes(rot[wi]); t++) wi = (wi + 1) % rot.length;
-    }
+    for (let t = 0; t < rot.length && absent.includes(rot[wi]); t++) wi = (wi + 1) % rot.length;
     const weeklyRoom = rot[wi];
 
-    // Mensal — pula quartos ausentes (SOMENTE NO FUTURO)
+    // Mensal — pula quartos ausentes
     let mi = (((year - 2024) * 12 + month + 2 + mo) % rot.length + rot.length) % rot.length;
-    if (isFutureOrToday) {
-      for (let t = 0; t < rot.length && absent.includes(rot[mi]); t++) mi = (mi + 1) % rot.length;
-    }
+    for (let t = 0; t < rot.length && absent.includes(rot[mi]); t++) mi = (mi + 1) % rot.length;
     const monthlyRoom = rot[mi];
 
     return {
@@ -428,9 +432,9 @@ function AppContent({
   }, [config, user, today.getTime(), mockDateStr]);
 
   // ── Offset helpers ─────────────────────────────────────────────────────────
-  const calcWeeklyOffset = (targetRoom: string) => {
+  const calcWeeklyOffsetUpdates = (targetRoom: string) => {
     const rot = ['101','102','103','104','105'];
-    const ni = rot.indexOf(targetRoom); if (ni === -1) return config?.weeklyRotationOffset ?? 0;
+    const absent = config?.absentRooms || [];
     let adj = getWeekNumber(today);
     if (config?.coletivoWeekends?.length) {
       adj -= config.coletivoWeekends.filter(ds => {
@@ -438,16 +442,58 @@ function AppContent({
         return getWeekNumber(new Date(+y,+m-1,+d,12,0,0,0)) <= adj;
       }).length;
     }
-    return ((ni - (adj + 3) % rot.length) % rot.length + rot.length) % rot.length;
+    const bi = (adj + 3) % rot.length;
+    let newOffset = 0;
+    for (let off = 0; off < rot.length; off++) {
+       let wi = ((bi + off) % rot.length + rot.length) % rot.length;
+       for (let t = 0; t < rot.length && absent.includes(rot[wi]); t++) wi = (wi + 1) % rot.length;
+       if (rot[wi] === targetRoom) { newOffset = off; break; }
+    }
+    const weekKey = `W${today.getFullYear()}-${String(getWeekNumber(today)).padStart(2, '0')}`;
+    return { weeklyOffsets: { ...(config?.weeklyOffsets || {}), [weekKey]: newOffset } };
   };
 
-  const calcMonthlyOffset = (targetRoom: string) => {
+  // Geladeira: o responsável sempre é pelo mês corrente (vira no dia 01)
+  const calcFridgeOffsetUpdates = (targetRoom: string) => {
     const rot = ['101','102','103','104','105'];
-    const ni = rot.indexOf(targetRoom); if (ni === -1) return config?.monthlyRotationOffset ?? 0;
-    const [yr, mo, dy] = [today.getFullYear(), today.getMonth(), today.getDate()];
-    const bi = ((yr - 2024) * 12 + mo + (dy >= 20 ? 1 : 0) + 2) % rot.length;
-    return ((ni - bi) % rot.length + rot.length) % rot.length;
+    const absent = config?.absentRooms || [];
+    const yr = today.getFullYear();
+    const mo = today.getMonth(); // mês corrente, sem antecipação
+    const bi = ((yr - 2024) * 12 + mo + 2) % rot.length;
+    let newOffset = 0;
+    for (let off = 0; off < rot.length; off++) {
+       let mi = ((bi + off) % rot.length + rot.length) % rot.length;
+       for (let t = 0; t < rot.length && absent.includes(rot[mi]); t++) mi = (mi + 1) % rot.length;
+       if (rot[mi] === targetRoom) { newOffset = off; break; }
+    }
+    const monthKey = `${yr}-${String(mo + 1).padStart(2, '0')}`;
+    return { monthlyOffsets: { ...(config?.monthlyOffsets || {}), [monthKey]: newOffset } };
   };
+
+  // Compras: a partir do dia 20, já exibe e salva o responsável do próximo mês
+  const calcProductsOffsetUpdates = (targetRoom: string) => {
+    const rot = ['101','102','103','104','105'];
+    const absent = config?.absentRooms || [];
+    const yr = today.getFullYear();
+    const mo = today.getMonth();
+    const dy = today.getDate();
+    // Se já é dia >= 20, registra o offset para o PRÓXIMO mês
+    const pivotMo = dy >= 20 ? mo + 1 : mo;
+    const pivotYr = pivotMo > 11 ? yr + 1 : yr;
+    const normalizedMo = pivotMo % 12;
+    const bi = ((pivotYr - 2024) * 12 + normalizedMo + 2) % rot.length;
+    let newOffset = 0;
+    for (let off = 0; off < rot.length; off++) {
+       let mi = ((bi + off) % rot.length + rot.length) % rot.length;
+       for (let t = 0; t < rot.length && absent.includes(rot[mi]); t++) mi = (mi + 1) % rot.length;
+       if (rot[mi] === targetRoom) { newOffset = off; break; }
+    }
+    const monthKey = `${pivotYr}-${String(normalizedMo + 1).padStart(2, '0')}`;
+    return { monthlyOffsets: { ...(config?.monthlyOffsets || {}), [monthKey]: newOffset } };
+  };
+
+  /** @deprecated Use calcFridgeOffsetUpdates or calcProductsOffsetUpdates */
+  const calcMonthlyOffsetUpdates = calcFridgeOffsetUpdates;
 
   // ── Absent rooms toggle (só rep) ────────────────────────────────────────
   const handleToggleAbsent = (room: string) => {
@@ -492,10 +538,28 @@ function AppContent({
   }, [today.getTime(), config?.coletivoWeekends]);
 
   const curRooms = getAutomaticRoomsForDate(today.getFullYear(), today.getMonth(), today.getDate());
-  const currentCleaningResponsible    = config?.cleaningResponsible    || curRooms.cleaning;
-  const currentMaintenanceResponsible = config?.maintenanceResponsible || curRooms.maintenance;
-  const currentFridgeResponsible      = config?.fridgeCleaningResponsible || curRooms.fridge;
-  const currentBuyingProductsResponsible = config?.buyingProductsResponsible || curRooms.products;
+
+  // Geladeira: vira no dia 01 de cada mês — usa o mês corrente sem ajuste
+  const fridgePivotYear  = today.getFullYear();
+  const fridgePivotMonth = today.getMonth();       // mes corrente (começa a valer desde o dia 1)
+  const fridgePivotRooms = getAutomaticRoomsForDate(fridgePivotYear, fridgePivotMonth, 15); // 15 garante Thursday 15-21
+
+  // Compras: vira no dia 20 — a partir do dia 20 já mostra o responsável do MÊS SEGUINTE
+  const todayDay = today.getDate();
+  const productsPivotDate = todayDay >= 20
+    ? new Date(today.getFullYear(), today.getMonth() + 1, 1)   // próximo mês
+    : new Date(today.getFullYear(), today.getMonth(), 1);      // mês corrente
+  const productsPivotRooms = getAutomaticRoomsForDate(
+    productsPivotDate.getFullYear(), productsPivotDate.getMonth(), 1
+  );
+
+  // Helper: só usa o valor do config se for string válida
+  const cfgStr = (v: any): string | undefined => (typeof v === 'string' && v ? v : undefined);
+
+  const currentCleaningResponsible       = cfgStr(config?.cleaningResponsible)    || curRooms.cleaning;
+  const currentMaintenanceResponsible    = cfgStr(config?.maintenanceResponsible) || curRooms.maintenance;
+  const currentFridgeResponsible         = cfgStr(config?.fridgeCleaningResponsible) || fridgePivotRooms.fridge;
+  const currentBuyingProductsResponsible = cfgStr(config?.buyingProductsResponsible) || productsPivotRooms.products;
 
   useEffect(() => {
     if (mockDateStr) {
@@ -572,10 +636,16 @@ function AppContent({
     const isManualProducts = config?.buyingProductsDay === dKey;
 
     const tasks: DayTask[] = [];
-    if (isCln) tasks.push({ id: 'clean', shortType: lang === 'en' ? t.cleaning : 'Limpeza', type: t.cleaning, color: 'sky', room: aRoom || config?.cleaningResponsible || auto.cleaning, isManual: isManualCleaning });
-    if (isMnt) tasks.push({ id: 'maint', shortType: lang === 'en' ? t.maintenance : 'Manutenção', type: t.maintenance, color: 'amber', room: aRoom || config?.maintenanceResponsible || auto.maintenance, isManual: isManualMaintenance });
-    if (isFrg) tasks.push({ id: 'fridge', shortType: lang === 'en' ? t.fridgeCleaning : 'L. Geladeira', type: t.fridgeCleaning, color: 'teal', room: aRoom || config?.fridgeCleaningResponsible || auto.fridge, isManual: isManualFridge });
-    if (isPrd) tasks.push({ id: 'prod', shortType: lang === 'en' ? t.buyingProducts : 'Compra', type: t.buyingProducts, color: 'pink', room: aRoom || config?.buyingProductsResponsible || auto.products, isManual: isManualProducts });
+    // Garante que o responsável é string (evita objeto deleteField() em caso de cache desatualizado)
+    const safeStr = (v: any): string | undefined => (typeof v === 'string' ? v : undefined);
+    const cleanResp   = safeStr(config?.cleaningResponsible);
+    const maintResp   = safeStr(config?.maintenanceResponsible);
+    const fridgeResp  = safeStr(config?.fridgeCleaningResponsible);
+    const prodResp    = safeStr(config?.buyingProductsResponsible);
+    if (isCln) tasks.push({ id: 'clean', shortType: lang === 'en' ? t.cleaning : 'Limpeza', type: t.cleaning, color: 'sky', room: aRoom || cleanResp || auto.cleaning, isManual: isManualCleaning });
+    if (isMnt) tasks.push({ id: 'maint', shortType: lang === 'en' ? t.maintenance : 'Manutenção', type: t.maintenance, color: 'amber', room: aRoom || maintResp || auto.maintenance, isManual: isManualMaintenance });
+    if (isFrg) tasks.push({ id: 'fridge', shortType: lang === 'en' ? t.fridgeCleaning : 'L. Geladeira', type: t.fridgeCleaning, color: 'teal', room: aRoom || fridgeResp || auto.fridge, isManual: isManualFridge });
+    if (isPrd) tasks.push({ id: 'prod', shortType: lang === 'en' ? t.buyingProducts : 'Compra', type: t.buyingProducts, color: 'pink', room: aRoom || prodResp || auto.products, isManual: isManualProducts });
     if (config?.coletivoWeekends?.includes(dKey)) tasks.push({ id: 'coletivo', shortType: t.coletivo, type: t.coletivo, color: 'purple', room: 'Coletivo', isManual: false });
     if (!tasks.length && aRoom) tasks.push({ id: 'manual', shortType: lang === 'en' ? 'Manual Task' : 'Tarefa', type: lang === 'en' ? 'Manual Task' : 'Tarefa Manual', color: 'emerald', room: aRoom, isManual: true });
     return { dayTasks: tasks, assignedRoom: aRoom, isCln, isMnt, isFrg, isPrd, auto };
@@ -962,8 +1032,9 @@ function AppContent({
                 config={config}
                 isRep={isRep}
                 updateConfig={updateConfig}
-                calcWeeklyOffset={calcWeeklyOffset}
-                calcMonthlyOffset={calcMonthlyOffset}
+                calcWeeklyOffsetUpdates={calcWeeklyOffsetUpdates}
+                calcFridgeOffsetUpdates={calcFridgeOffsetUpdates}
+                calcProductsOffsetUpdates={calcProductsOffsetUpdates}
                 currentCleaningResponsible={currentCleaningResponsible}
                 currentMaintenanceResponsible={currentMaintenanceResponsible}
                 currentFridgeResponsible={currentFridgeResponsible}

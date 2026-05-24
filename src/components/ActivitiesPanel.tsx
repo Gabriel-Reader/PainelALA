@@ -9,8 +9,9 @@ interface ActivitiesPanelProps {
   config: AppConfig;
   isRep: boolean;
   updateConfig: (updates: Partial<AppConfig>) => void;
-  calcWeeklyOffset: (room: string) => number;
-  calcMonthlyOffset: (room: string) => number;
+  calcWeeklyOffsetUpdates: (room: string) => Record<string, any>;
+  calcFridgeOffsetUpdates: (room: string) => Record<string, any>;
+  calcProductsOffsetUpdates: (room: string) => Record<string, any>;
   currentCleaningResponsible: string;
   currentMaintenanceResponsible: string;
   currentFridgeResponsible: string;
@@ -91,13 +92,15 @@ function roomLabel(room: string, t: { room: string; coletivo: string; auto: stri
 }
 
 export function ActivitiesPanel({
-  config, isRep, updateConfig, calcWeeklyOffset, calcMonthlyOffset,
+  config, isRep, updateConfig, calcWeeklyOffsetUpdates, calcFridgeOffsetUpdates, calcProductsOffsetUpdates,
   currentCleaningResponsible, currentMaintenanceResponsible,
   currentFridgeResponsible, currentBuyingProductsResponsible,
   absentRooms, onToggleAbsent,
 }: ActivitiesPanelProps) {
   const { t } = useLang();
   const rl = (room: string, auto = false) => roomLabel(room, t, auto);
+  // Garante que valor do config é string (evita sentinel deleteField())
+  const safeVal = (v: any): string => (typeof v === 'string' ? v : '');
 
   // ── Loading state individual por campo ─────────────────────────────────────
   const [savingFields, setSavingFields] = useState<Set<string>>(new Set());
@@ -136,7 +139,7 @@ export function ActivitiesPanel({
           selectBorder="border border-sky-800"
           selectFocus="focus:border-sky-500"
           isRep={isRep}
-          value={config.cleaningResponsible ?? ''}
+          value={safeVal(config.cleaningResponsible)}
           autoLabel={rl(currentCleaningResponsible, !config.cleaningResponsible)}
           responsibleLabel={t.responsibleRoom}
           roomLabel={rl}
@@ -144,7 +147,7 @@ export function ActivitiesPanel({
           onChange={val => handleFieldChange('cleaning', () => {
             if (val) updateConfig({
               cleaningResponsible: val,
-              weeklyRotationOffset: calcWeeklyOffset(val)
+              ...calcWeeklyOffsetUpdates(val)
             });
             else updateConfig({ cleaningResponsible: deleteField() as any });
           })}
@@ -162,7 +165,7 @@ export function ActivitiesPanel({
           selectBorder="border border-amber-800"
           selectFocus="focus:border-amber-500"
           isRep={isRep}
-          value={config.maintenanceResponsible ?? ''}
+          value={safeVal(config.maintenanceResponsible)}
           autoLabel={rl(currentMaintenanceResponsible, !config.maintenanceResponsible)}
           responsibleLabel={t.responsibleRoom}
           roomLabel={rl}
@@ -170,7 +173,7 @@ export function ActivitiesPanel({
           onChange={val => handleFieldChange('maintenance', () => {
             if (val) updateConfig({
               maintenanceResponsible: val,
-              weeklyRotationOffset: calcWeeklyOffset(val)
+              ...calcWeeklyOffsetUpdates(val)
             });
             else updateConfig({ maintenanceResponsible: deleteField() as any });
           })}
@@ -188,7 +191,7 @@ export function ActivitiesPanel({
           selectBorder="border border-teal-800"
           selectFocus="focus:border-teal-500"
           isRep={isRep}
-          value={config.fridgeCleaningResponsible ?? ''}
+          value={safeVal(config.fridgeCleaningResponsible)}
           autoLabel={rl(currentFridgeResponsible, !config.fridgeCleaningResponsible)}
           responsibleLabel={t.responsibleRoom}
           roomLabel={rl}
@@ -196,7 +199,7 @@ export function ActivitiesPanel({
           onChange={val => handleFieldChange('fridge', () => {
             if (val) updateConfig({
               fridgeCleaningResponsible: val,
-              monthlyRotationOffset: calcMonthlyOffset(val)
+              ...calcFridgeOffsetUpdates(val)
             });
             else updateConfig({ fridgeCleaningResponsible: deleteField() as any });
           })}
@@ -214,7 +217,7 @@ export function ActivitiesPanel({
           selectBorder="border border-pink-800"
           selectFocus="focus:border-pink-500"
           isRep={isRep}
-          value={config.buyingProductsResponsible ?? ''}
+          value={safeVal(config.buyingProductsResponsible)}
           autoLabel={rl(currentBuyingProductsResponsible, !config.buyingProductsResponsible)}
           responsibleLabel={t.responsibleRoom}
           roomLabel={rl}
@@ -222,7 +225,7 @@ export function ActivitiesPanel({
           onChange={val => handleFieldChange('products', () => {
             if (val) updateConfig({
               buyingProductsResponsible: val,
-              monthlyRotationOffset: calcMonthlyOffset(val)
+              ...calcProductsOffsetUpdates(val)
             });
             else updateConfig({ buyingProductsResponsible: deleteField() as any });
           })}

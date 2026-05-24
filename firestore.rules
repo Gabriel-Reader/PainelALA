@@ -89,8 +89,9 @@ service cloud.firestore {
              (!('links' in data) || (data.links is list && data.links.size() <= 100)) &&
              (!('absentRooms' in data) || (data.absentRooms is list && data.absentRooms.size() <= 10)) &&
              (!('absentRoomsWeek' in data) || (data.absentRoomsWeek is number)) &&
-             (!('weeklyRotationOffset' in data) || (data.weeklyRotationOffset is number)) &&
              (!('monthlyRotationOffset' in data) || (data.monthlyRotationOffset is number)) &&
+             (!('weeklyOffsets' in data) || (data.weeklyOffsets is map)) &&
+             (!('monthlyOffsets' in data) || (data.monthlyOffsets is map)) &&
              (!('fundBalance' in data) || (data.fundBalance is number)) &&
              data.maintenanceTasks is list && data.maintenanceTasks.size() <= 100 &&
              data.schedule is map && data.schedule.size() <= 365 &&
@@ -106,6 +107,7 @@ service cloud.firestore {
          'coletivoWeekends', 'products', 'links',
          'absentRooms', 'absentRoomsWeek',
          'weeklyRotationOffset', 'monthlyRotationOffset',
+         'weeklyOffsets', 'monthlyOffsets',
          'fundBalance',
          'appTitle', 'appSubtitle',
          'tabMainName', 'tabRulesName', 'tabGeneralRulesName', 'tabLinksName', 'tabProductsName', 'tabMaintenanceName',

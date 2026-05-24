@@ -116,8 +116,9 @@ export interface AppConfig {
   buyingProductsDay?: string;
   coletivoWeekends?: string[];
   products?: Product[];
-  weeklyRotationOffset?: number;
   monthlyRotationOffset?: number;
+  weeklyOffsets?: Record<string, number>;
+  monthlyOffsets?: Record<string, number>;
   absentRooms?: string[];
   absentRoomsWeek?: number;
   links?: AppLink[];
@@ -165,7 +166,7 @@ const LS_PROFILE_KEY = 'painel_profile_cache';
 function lsRead<T>(key: string): T | null {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : null;
+    return raw ? (sanitizeConfig(JSON.parse(raw)) as T) : null;
   } catch {
     return null;
   }
@@ -178,6 +179,21 @@ function lsWrite(key: string, value: unknown) {
   } catch {
     /* quota exceeded — ignorar silenciosamente */
   }
+}
+
+/**
+ * Remove campos que contenham objetos sentinel do Firestore (ex: deleteField())
+ * que possam ter ficado em cache incorretamente. Esses objetos têm a chave `_methodName`.
+ */
+function sanitizeConfig<T extends object>(data: T): T {
+  const clean = { ...data } as any;
+  for (const key of Object.keys(clean)) {
+    const val = clean[key];
+    if (val && typeof val === 'object' && '_methodName' in val) {
+      delete clean[key];
+    }
+  }
+  return clean as T;
 }
 
 export function useWingConfig() {
@@ -260,7 +276,7 @@ export function useWingConfig() {
           setConfig(DEFAULT_CONFIG);
           lsWrite(LS_CONFIG_KEY, DEFAULT_CONFIG);
         } else {
-          const data = snap.data() as AppConfig;
+          const data = sanitizeConfig(snap.data() as AppConfig);
           setConfig(data);
           lsWrite(LS_CONFIG_KEY, data); // persiste no cache
           // Só oculta o loading na primeira vez que vem do servidor
@@ -283,8 +299,20 @@ export function useWingConfig() {
     if (!config) return;
     setSaveError(null);
 
-    // Optimistic update: aplica no estado local e cache antes de ir ao Firestore
-    const merged = { ...config, ...newConfig };
+    // Optimistic update: aplica no estado local e cache antes de ir ao Firestore.
+    // Remove campos com deleteField() (objetos internos do Firestore com _methodName)
+    // para não serem armazenados no estado local e causarem erro de renderização React.
+    const localUpdate: Partial<AppConfig> = {};
+    const deletedKeys: string[] = [];
+    for (const [k, v] of Object.entries(newConfig)) {
+      if (v && typeof v === 'object' && '_methodName' in v) {
+        deletedKeys.push(k);
+      } else {
+        (localUpdate as any)[k] = v;
+      }
+    }
+    const merged: any = { ...config, ...localUpdate };
+    deletedKeys.forEach(k => delete merged[k]);
     setConfig(merged);
     lsWrite(LS_CONFIG_KEY, merged);
 

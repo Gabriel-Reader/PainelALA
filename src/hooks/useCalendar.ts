@@ -1,6 +1,6 @@
 import { useMemo, useCallback } from 'react';
 import { AppConfig } from './useWingConfig';
-import { getWeekNumber } from '../utils/date';
+import { getWeekNumber, getEffectiveOffset } from '../utils/date';
 
 /**
  * Representação de um dia no calendário com suas tarefas.
@@ -58,8 +58,6 @@ export function useCalendar(
     const maintenanceDay = config.maintenanceDay;
     const fridgeCleaningDay = config.fridgeCleaningDay;
     const buyingProductsDay = config.buyingProductsDay;
-    const weeklyOffset = config.weeklyRotationOffset ?? 0;
-    const monthlyOffset = config.monthlyRotationOffset ?? 0;
     const absentRooms = config.absentRooms ?? [];
     const ROOMS = ['101', '102', '103', '104', '105'];
 
@@ -96,6 +94,8 @@ export function useCalendar(
       if ([5, 6, 0, 1].includes(dayOfWeek)) {
         const coletivoCount = coletivoWeekends.length;
         const effectiveWeek = weekNum - coletivoCount;
+        const weekKey = `W${year}-${String(weekNum).padStart(2, '0')}`;
+        const weeklyOffset = getEffectiveOffset(config.weeklyOffsets, weekKey, config.weeklyRotationOffset ?? 0);
         const rawIndex = ((effectiveWeek + 3 + weeklyOffset) % ROOMS.length + ROOMS.length) % ROOMS.length;
         const room = getEffectiveRoom(rawIndex);
 
@@ -117,6 +117,8 @@ export function useCalendar(
       if ([3, 4].includes(dayOfWeek) && !isColetivo) {
         const coletivoCount = coletivoWeekends.length;
         const effectiveWeek = weekNum - coletivoCount;
+        const weekKey = `W${year}-${String(weekNum).padStart(2, '0')}`;
+        const weeklyOffset = getEffectiveOffset(config.weeklyOffsets, weekKey, config.weeklyRotationOffset ?? 0);
         const rawIndex = ((effectiveWeek + 3 + weeklyOffset) % ROOMS.length + ROOMS.length) % ROOMS.length;
         const room = getEffectiveRoom(rawIndex);
 
@@ -132,6 +134,8 @@ export function useCalendar(
 
       // --- Limpeza Geladeira (qui entre 15-21) ---
       if (dayOfWeek === 4 && day >= 15 && day <= 21) {
+        const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+        const monthlyOffset = getEffectiveOffset(config.monthlyOffsets, monthKey, config.monthlyRotationOffset ?? 0);
         const rawIndex = ((year - 2024) * 12 + month + 2 + monthlyOffset) % ROOMS.length;
         const normalized = ((rawIndex % ROOMS.length) + ROOMS.length) % ROOMS.length;
         const room = getEffectiveRoom(normalized);
@@ -148,6 +152,8 @@ export function useCalendar(
 
       // --- Compras (dia 1) ---
       if (day === 1) {
+        const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+        const monthlyOffset = getEffectiveOffset(config.monthlyOffsets, monthKey, config.monthlyRotationOffset ?? 0);
         const rawIndex = ((year - 2024) * 12 + month + 2 + monthlyOffset) % ROOMS.length;
         const normalized = ((rawIndex % ROOMS.length) + ROOMS.length) % ROOMS.length;
         const room = getEffectiveRoom(normalized);

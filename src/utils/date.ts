@@ -79,3 +79,21 @@ export function isDayOfWeek(year: number, month: number, day: number, dayOfWeek:
 export function getDayOfWeek(year: number, month: number, day: number): number {
   return new Date(year, month, day).getDay();
 }
+
+/**
+ * Retorna o offset efetivo com base num dicionário de offsets e uma chave alvo (ex: YYYY-MM).
+ */
+export function getEffectiveOffset(offsets: Record<string, number> | undefined, targetKey: string, fallback: number): number {
+  if (!offsets) return fallback;
+  let bestOffset = fallback;
+  let bestKey = "";
+  for (const [key, offset] of Object.entries(offsets)) {
+    if (key <= targetKey) {
+      if (key >= bestKey) {
+        bestKey = key;
+        bestOffset = offset;
+      }
+    }
+  }
+  return bestOffset;
+}

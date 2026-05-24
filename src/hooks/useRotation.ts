@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { AppConfig } from './useWingConfig';
 import { ROOMS } from '../constants';
-import { getWeekNumber } from '../utils/date';
+import { getWeekNumber, getEffectiveOffset, getMonthKey, getWeekKey } from '../utils/date';
 
 /**
  * Resultado de uma rotação calculada.
@@ -24,8 +24,11 @@ export function useRotation(config: AppConfig, today: Date) {
   const year = today.getFullYear();
   const month = today.getMonth();
 
-  const weeklyOffset = config.weeklyRotationOffset ?? 0;
-  const monthlyOffset = config.monthlyRotationOffset ?? 0;
+  const weekKey = getWeekKey(today);
+  const monthKey = getMonthKey(today);
+  
+  const weeklyOffset = getEffectiveOffset(config.weeklyOffsets, weekKey, config.weeklyRotationOffset ?? 0);
+  const monthlyOffset = getEffectiveOffset(config.monthlyOffsets, monthKey, config.monthlyRotationOffset ?? 0);
   const absentRooms = config.absentRooms ?? [];
   const coletivoWeekends = config.coletivoWeekends ?? [];
 

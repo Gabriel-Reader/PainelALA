@@ -46,7 +46,7 @@ export function RulesTab({ config, isRep, updateConfig, currentRuleBlocks }: Rul
       const elementsToHide = targetElement.querySelectorAll('.opacity-0, .text-red-400, .text-sky-600, .text-red-500, button[title="Editar"], button[title="Excluir Painel"]');
       elementsToHide.forEach((el) => { (el as HTMLElement).style.visibility = 'hidden'; });
 
-      const dataUrl = await toPng(targetElement as HTMLElement, { cacheBust: true, backgroundColor: elementId ? 'transparent' : '#171717', pixelRatio: 2 });
+      const dataUrl = await toPng(targetElement as HTMLElement, { cacheBust: true, backgroundColor: elementId ? 'transparent' : '#171717', pixelRatio: 3, skipFonts: true, style: { margin: '0' } });
       
       elementsToHide.forEach((el) => { (el as HTMLElement).style.visibility = ''; });
 
@@ -229,7 +229,7 @@ export function RulesTab({ config, isRep, updateConfig, currentRuleBlocks }: Rul
 
       <div ref={rulesContainerRef} className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start p-2 -m-2 sm:p-4 sm:-m-4 bg-[#171717] rounded-xl">
         {currentRuleBlocks.map((block, i) => (
-          <div key={block.id} id={`rule-block-${block.id}`} className="bg-neutral-800 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-neutral-700 overflow-hidden flex flex-col items-start h-max pb-0 relative group">
+          <div key={block.id} className="bg-neutral-800 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-neutral-700 overflow-hidden flex flex-col items-start h-max pb-0 relative group">
             {isRep && currentRuleBlocks.length > 1 && (
               <button onClick={() => handleRemoveBlock(block.id)} className="absolute top-4 right-4 z-20 text-red-400 hover:text-red-300 p-2 hover:bg-red-500/10 rounded-full transition-colors opacity-0 group-hover:opacity-100" title={t.deletePanel}>
                 <Trash2 size={16} />
@@ -237,7 +237,7 @@ export function RulesTab({ config, isRep, updateConfig, currentRuleBlocks }: Rul
             )}
             <div className="w-full flex-1 bg-neutral-900 border-t border-neutral-700 relative overflow-hidden">
               <div className="absolute inset-0 bg-[url('/stucco.png')] opacity-20 pointer-events-none" />
-              <div className="bg-white bg-[url('/stucco.png')] w-[92%] mx-auto mt-6 rounded-xl p-6 sm:p-8 shadow-lg border border-neutral-200 relative">
+              <div id={`rule-block-${block.id}`} className="bg-white bg-[url('/stucco.png')] w-[92%] mx-auto mt-6 mb-6 rounded-xl p-6 sm:p-8 shadow-lg border border-neutral-200 relative">
                 <div className="w-12 h-1.5 rounded-full bg-sky-500/80 absolute top-3 left-1/2 transform -translate-x-1/2 shadow-sm z-10" />
 
                 {editingBlockTitle === block.id ? (
@@ -369,7 +369,7 @@ export function RulesTab({ config, isRep, updateConfig, currentRuleBlocks }: Rul
                 )}
               </div>
               
-              <div className="w-full mt-6 p-3 bg-neutral-900/50 border-t border-neutral-800 flex justify-center" data-html2canvas-ignore>
+              <div className="w-full mt-2 p-3 bg-neutral-900/50 border-t border-neutral-800 flex justify-center">
                 <button
                   onClick={() => handleCopyImage(`rule-block-${block.id}`, block.title)}
                   className="flex items-center gap-2 text-neutral-400 hover:text-white hover:bg-neutral-800 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-colors border border-transparent hover:border-neutral-700"

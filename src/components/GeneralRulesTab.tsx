@@ -35,15 +35,17 @@ export function GeneralRulesTab({ config, isRep, updateConfig, currentGeneralRul
 
   const rulesContainerRef = React.useRef<HTMLDivElement>(null);
 
-  const handleCopyImage = async () => {
-    if (!rulesContainerRef.current) return;
+  const handleCopyImage = async (elementId?: string, fileName?: string) => {
+    const targetElement = elementId ? document.getElementById(elementId) : rulesContainerRef.current;
+    if (!targetElement) return;
+
     try {
       showToast('Gerando imagem...', 'info');
       
-      const elementsToHide = rulesContainerRef.current.querySelectorAll('.opacity-0, .text-red-400, .text-indigo-600, .text-red-500, button[title="Editar"], button[title="Excluir Painel"]');
+      const elementsToHide = targetElement.querySelectorAll('.opacity-0, .text-red-400, .text-indigo-600, .text-red-500, button[title="Editar"], button[title="Excluir Painel"]');
       elementsToHide.forEach((el) => { (el as HTMLElement).style.visibility = 'hidden'; });
 
-      const dataUrl = await toPng(rulesContainerRef.current, { cacheBust: true, backgroundColor: '#171717', pixelRatio: 2 });
+      const dataUrl = await toPng(targetElement as HTMLElement, { cacheBust: true, backgroundColor: elementId ? 'transparent' : '#171717', pixelRatio: 2 });
       
       elementsToHide.forEach((el) => { (el as HTMLElement).style.visibility = ''; });
 
@@ -57,7 +59,7 @@ export function GeneralRulesTab({ config, isRep, updateConfig, currentGeneralRul
         showToast('Imagem copiada para a área de transferência!', 'success');
       } catch (err) {
         const link = document.createElement('a');
-        link.download = 'regras-gerais.png';
+        link.download = fileName ? `${fileName}.png` : 'regras-gerais.png';
         link.href = dataUrl;
         link.click();
         showToast('Imagem baixada com sucesso!', 'success');
@@ -213,8 +215,8 @@ export function GeneralRulesTab({ config, isRep, updateConfig, currentGeneralRul
       </div>
 
       <div className="flex justify-end gap-3 flex-wrap">
-        <button onClick={handleCopyImage} className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-medium py-2.5 px-4 rounded-lg shadow-sm border border-neutral-700 flex items-center gap-2 transition-colors">
-          <ImageIcon size={18} /> Exportar Imagem
+        <button onClick={() => handleCopyImage()} className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-medium py-2.5 px-4 rounded-lg shadow-sm border border-neutral-700 flex items-center gap-2 transition-colors">
+          <ImageIcon size={18} /> Exportar Todas
         </button>
         {isRep && (
           <button onClick={handleAddBlock} className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm border border-sky-500/50 flex items-center gap-2 transition-colors">
@@ -225,7 +227,7 @@ export function GeneralRulesTab({ config, isRep, updateConfig, currentGeneralRul
 
       <div ref={rulesContainerRef} className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start p-2 -m-2 sm:p-4 sm:-m-4 bg-[#171717] rounded-xl">
         {currentGeneralRuleBlocks.map((block, i) => (
-          <div key={block.id} className="bg-neutral-800 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-neutral-700 overflow-hidden flex flex-col items-start h-max pb-8 relative group">
+          <div key={block.id} id={`general-rule-block-${block.id}`} className="bg-neutral-800 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-neutral-700 overflow-hidden flex flex-col items-start h-max pb-0 relative group">
             {isRep && (
               <button onClick={() => handleRemoveBlock(block.id)} className="absolute top-4 right-4 z-20 text-red-400 hover:text-red-300 p-2 hover:bg-red-500/10 rounded-full transition-colors opacity-0 group-hover:opacity-100" title={t.deletePanel}>
                 <Trash2 size={16} />
@@ -364,6 +366,17 @@ export function GeneralRulesTab({ config, isRep, updateConfig, currentGeneralRul
                   </button>
                 )}
               </div>
+              
+              <div className="w-full mt-6 p-3 bg-neutral-900/50 border-t border-neutral-800 flex justify-center" data-html2canvas-ignore>
+                <button
+                  onClick={() => handleCopyImage(`general-rule-block-${block.id}`, block.title)}
+                  className="flex items-center gap-2 text-neutral-400 hover:text-white hover:bg-neutral-800 px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm rounded-lg transition-colors border border-transparent hover:border-neutral-700"
+                  title="Copiar este cartão como imagem"
+                >
+                  <ImageIcon size={14} className="sm:w-4 sm:h-4" /> Exportar Cartão
+                </button>
+              </div>
+
             </div>
           </div>
         ))}

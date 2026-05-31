@@ -302,11 +302,11 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
 
           <button
             onClick={handleCopyList}
-            className="flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 hover:border-neutral-500 active:scale-95 active:bg-neutral-600 border border-neutral-700 text-neutral-300 px-4 py-3 sm:py-2.5 rounded-xl font-bold transition-all duration-200 shadow-sm flex-1 sm:flex-initial"
+            className="flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 hover:border-neutral-500 active:scale-95 active:bg-neutral-600 border border-neutral-700 text-neutral-300 px-4 py-3 sm:py-2.5 rounded-xl font-bold transition-all duration-200 shadow-sm flex-1 sm:flex-initial whitespace-nowrap"
             title={t.copyShoppingList}
           >
             <Copy size={18} />
-            <span className="hidden sm:inline">{t.copyShoppingList}</span>
+            <span>{t.copyShoppingList}</span>
           </button>
 
           {/* Apenas o rep pode adicionar novos produtos */}

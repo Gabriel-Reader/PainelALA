@@ -80,7 +80,17 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
   };
 
   const handleDelete = (id: string) => {
+    const productToDelete = products.find(p => p.id === id);
+    if (!productToDelete) return;
+
     updateProducts(products.filter(p => p.id !== id));
+    
+    showToast(`Produto '${productToDelete.name}' excluído.`, 'info', {
+      label: 'Desfazer',
+      onClick: () => {
+        updateProducts([...products]);
+      }
+    });
   };
 
   const resetEditState = () => {

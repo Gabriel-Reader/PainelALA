@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Edit2, CheckSquare, Check, X, GripVertical, AlertCircle, Pencil } from 'lucide-react';
+import { Plus, Trash2, Edit2, CheckSquare, Check, X, GripVertical, AlertCircle, Pencil, Image as ImageIcon } from 'lucide-react';
 import { AppConfig, RuleBlock } from '../hooks/useWingConfig';
 import { useLang } from '../LanguageContext';
+import { toPng } from 'html-to-image';
+import { showToast } from './Toast';
 
 const renderFormattedText = (text: string) => {
   if (!text) return '';
@@ -31,13 +33,55 @@ export function GeneralRulesTab({ config, isRep, updateConfig, currentGeneralRul
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const { t } = useLang();
 
+  const rulesContainerRef = React.useRef<HTMLDivElement>(null);
+
+  const handleCopyImage = async () => {
+    if (!rulesContainerRef.current) return;
+    try {
+      showToast('Gerando imagem...', 'info');
+      
+      const elementsToHide = rulesContainerRef.current.querySelectorAll('.opacity-0, .text-red-400, .text-indigo-600, .text-red-500, button[title="Editar"], button[title="Excluir Painel"]');
+      elementsToHide.forEach((el) => { (el as HTMLElement).style.visibility = 'hidden'; });
+
+      const dataUrl = await toPng(rulesContainerRef.current, { cacheBust: true, backgroundColor: '#171717', pixelRatio: 2 });
+      
+      elementsToHide.forEach((el) => { (el as HTMLElement).style.visibility = ''; });
+
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+        showToast('Imagem copiada para a área de transferência!', 'success');
+      } catch (err) {
+        const link = document.createElement('a');
+        link.download = 'regras-gerais.png';
+        link.href = dataUrl;
+        link.click();
+        showToast('Imagem baixada com sucesso!', 'success');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Erro ao gerar imagem.', 'error');
+    }
+  };
+
   const handleAddBlock = () => {
     const newBlock: RuleBlock = { id: Date.now().toString(), title: t.newGeneralBlock, rules: [] };
     updateConfig({ generalRuleBlocks: [...currentGeneralRuleBlocks, newBlock] });
   };
 
-  const handleRemoveBlock = (blockId: string) =>
+  const handleRemoveBlock = (blockId: string) => {
+    const blockToDelete = currentGeneralRuleBlocks.find(b => b.id === blockId);
+    if (!blockToDelete) return;
     updateConfig({ generalRuleBlocks: currentGeneralRuleBlocks.filter(b => b.id !== blockId) });
+    showToast(`Lousa '${blockToDelete.title}' excluída.`, 'info', {
+      label: 'Desfazer',
+      onClick: () => updateConfig({ generalRuleBlocks: [...currentGeneralRuleBlocks] })
+    });
+  };
 
   const handleUpdateBlockTitle = (blockId: string) => {
     updateConfig({ generalRuleBlocks: currentGeneralRuleBlocks.map(b => b.id === blockId ? { ...b, title: editBlockTitleValue } : b) });
@@ -52,6 +96,9 @@ export function GeneralRulesTab({ config, isRep, updateConfig, currentGeneralRul
   };
 
   const handleRemoveRule = (blockId: string, ruleIndex: number) => {
+    const block = currentGeneralRuleBlocks.find(b => b.id === blockId);
+    if (!block) return;
+
     updateConfig({
       generalRuleBlocks: currentGeneralRuleBlocks.map(b => {
         if (b.id !== blockId) return b;
@@ -59,6 +106,11 @@ export function GeneralRulesTab({ config, isRep, updateConfig, currentGeneralRul
         newRules.splice(ruleIndex, 1);
         return { ...b, rules: newRules };
       }),
+    });
+
+    showToast(`Regra excluída.`, 'info', {
+      label: 'Desfazer',
+      onClick: () => updateConfig({ generalRuleBlocks: [...currentGeneralRuleBlocks] })
     });
   };
 
@@ -160,15 +212,18 @@ export function GeneralRulesTab({ config, isRep, updateConfig, currentGeneralRul
         </div>
       </div>
 
-      {isRep && (
-        <div className="flex justify-end">
+      <div className="flex justify-end gap-3 flex-wrap">
+        <button onClick={handleCopyImage} className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-medium py-2.5 px-4 rounded-lg shadow-sm border border-neutral-700 flex items-center gap-2 transition-colors">
+          <ImageIcon size={18} /> Exportar Imagem
+        </button>
+        {isRep && (
           <button onClick={handleAddBlock} className="bg-sky-600 hover:bg-sky-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm border border-sky-500/50 flex items-center gap-2 transition-colors">
             <Plus size={18} /> {t.newGeneralRuleBlock}
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+      <div ref={rulesContainerRef} className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start p-2 -m-2 sm:p-4 sm:-m-4 bg-[#171717] rounded-xl">
         {currentGeneralRuleBlocks.map((block, i) => (
           <div key={block.id} className="bg-neutral-800 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-neutral-700 overflow-hidden flex flex-col items-start h-max pb-8 relative group">
             {isRep && (

@@ -3,10 +3,16 @@ import { X, AlertCircle, CheckCircle, Info } from 'lucide-react';
 
 export type ToastType = 'error' | 'success' | 'info';
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface ToastMessage {
   id: number;
   text: string;
   type: ToastType;
+  action?: ToastAction;
 }
 
 let toastId = 0;
@@ -15,8 +21,8 @@ let addToastFn: ((msg: Omit<ToastMessage, 'id'>) => void) | null = null;
 /**
  * Função global para exibir toasts de qualquer lugar.
  */
-export function showToast(text: string, type: ToastType = 'info') {
-  addToastFn?.({ text, type });
+export function showToast(text: string, type: ToastType = 'info', action?: ToastAction) {
+  addToastFn?.({ text, type, action });
 }
 
 interface ToastContainerProps {
@@ -67,13 +73,24 @@ export function ToastContainer({ duration = 4000 }: ToastContainerProps) {
         return (
           <div
             key={toast.id}
-            className={`flex items-start gap-2 px-4 py-3 rounded-lg border shadow-lg backdrop-blur-sm animate-[slideIn_0.2s_ease-out] ${colors[toast.type]}`}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg border shadow-lg backdrop-blur-sm animate-[slideIn_0.2s_ease-out] ${colors[toast.type]}`}
           >
-            <Icon size={18} className="mt-0.5 shrink-0" />
+            <Icon size={18} className="shrink-0" />
             <span className="text-sm flex-1">{toast.text}</span>
+            {toast.action && (
+              <button
+                onClick={() => {
+                  toast.action!.onClick();
+                  dismiss(toast.id);
+                }}
+                className="shrink-0 text-xs font-bold uppercase tracking-wider bg-black/20 hover:bg-black/30 px-3 py-1.5 rounded-md transition-colors shadow-sm ml-2"
+              >
+                {toast.action.label}
+              </button>
+            )}
             <button
               onClick={() => dismiss(toast.id)}
-              className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+              className="shrink-0 opacity-60 hover:opacity-100 transition-opacity ml-1"
             >
               <X size={14} />
             </button>

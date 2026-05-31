@@ -234,8 +234,8 @@ export function RulesTab({ config, isRep, updateConfig, currentRuleBlocks }: Rul
               </button>
             )}
             <div className="w-full flex-1 bg-neutral-900 border-t border-neutral-700 relative overflow-hidden">
-              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stucco.png')] opacity-20 pointer-events-none" />
-              <div className="bg-white bg-[url('https://www.transparenttextures.com/patterns/stucco.png')] w-[92%] mx-auto mt-6 rounded-xl p-6 sm:p-8 shadow-lg border border-neutral-200 relative">
+              <div className="absolute inset-0 bg-[url('/stucco.png')] opacity-20 pointer-events-none" />
+              <div className="bg-white bg-[url('/stucco.png')] w-[92%] mx-auto mt-6 rounded-xl p-6 sm:p-8 shadow-lg border border-neutral-200 relative">
                 <div className="w-12 h-1.5 rounded-full bg-sky-500/80 absolute top-3 left-1/2 transform -translate-x-1/2 shadow-sm z-10" />
 
                 {editingBlockTitle === block.id ? (

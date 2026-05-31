@@ -15,7 +15,7 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
   const { t } = useLang();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const [editType, setEditType] = useState<'unit' | 'amount'>('unit');
+  const [editType, setEditType] = useState<'unit' | 'amount' | 'both'>('unit');
   const [editQuantity, setEditQuantity] = useState(0);
   const [editTargetQuantity, setEditTargetQuantity] = useState(0);
   const [editStatus, setEditStatus] = useState<'full' | 'more_than_half' | 'half' | 'less_than_half' | 'empty'>('full');
@@ -42,6 +42,10 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
       newProduct.targetQuantity = editTargetQuantity;
     } else if (editType === 'amount') {
       newProduct.status = editStatus;
+    } else if (editType === 'both') {
+      newProduct.quantity = editQuantity;
+      newProduct.targetQuantity = editTargetQuantity;
+      newProduct.status = editStatus;
     }
     updateProducts([...products, newProduct]);
     setIsAdding(false);
@@ -60,6 +64,10 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
           up.quantity = editQuantity;
           up.targetQuantity = editTargetQuantity;
         } else if (editType === 'amount') {
+          up.status = editStatus;
+        } else if (editType === 'both') {
+          up.quantity = editQuantity;
+          up.targetQuantity = editTargetQuantity;
           up.status = editStatus;
         }
         return up;
@@ -135,14 +143,15 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
       />
       <select
         value={editType}
-        onChange={e => setEditType(e.target.value as 'unit' | 'amount')}
+        onChange={e => setEditType(e.target.value as 'unit' | 'amount' | 'both')}
         className="bg-neutral-900 border border-neutral-700 text-white px-3 py-2 rounded-md focus:outline-none focus:border-pink-500"
       >
         <option value="unit">{t.byUnit}</option>
         <option value="amount">{t.byVolume}</option>
+        <option value="both">{t.byBoth}</option>
       </select>
 
-      {editType === 'unit' && (
+      {(editType === 'unit' || editType === 'both') && (
         <div className="flex gap-2">
           <label className="flex-1 min-w-0 flex flex-col gap-1 text-xs text-neutral-400">
             {t.current}
@@ -155,7 +164,7 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
         </div>
       )}
 
-      {editType === 'amount' && (
+      {(editType === 'amount' || editType === 'both') && (
         <select
           value={editStatus}
           onChange={e => setEditStatus(e.target.value as any)}
@@ -274,7 +283,7 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
             );
           }
 
-          const progress = product.type === 'unit'
+          const progress = (product.type === 'unit' || product.type === 'both')
             ? getUnitProgress(product.quantity || 0, product.targetQuantity || 1)
             : 0;
 
@@ -318,6 +327,16 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
                       <span className="text-3xl font-black text-pink-100">{product.quantity}</span>
                       <span className="text-sm text-neutral-400 pb-1">/ {product.targetQuantity} unid.</span>
                     </div>
+                  ) : product.type === 'both' ? (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-end gap-2">
+                        <span className="text-3xl font-black text-pink-100">{product.quantity}</span>
+                        <span className="text-sm text-neutral-400 pb-1">/ {product.targetQuantity} unid.</span>
+                      </div>
+                      <div className={`inline-flex self-start items-center px-2.5 py-1 rounded-full text-xs font-bold leading-none capitalize ${product.status === 'empty' ? 'bg-red-500/20 text-red-400' : product.status === 'less_than_half' ? 'bg-orange-500/20 text-orange-400' : product.status === 'half' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                        {getStatusLabel(product.status)}
+                      </div>
+                    </div>
                   ) : (
                     <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold leading-none capitalize ${product.status === 'empty' ? 'bg-red-500/20 text-red-400' : product.status === 'less_than_half' ? 'bg-orange-500/20 text-orange-400' : product.status === 'half' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                       {getStatusLabel(product.status)}
@@ -328,7 +347,7 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
 
               {/* Progress bar */}
               <div className="w-full h-2 bg-neutral-900 rounded-full overflow-hidden">
-                {product.type === 'unit' ? (
+                {(product.type === 'unit' || product.type === 'both') ? (
                   <div
                     className={`h-full transition-all duration-500 ${progress <= 20 ? 'bg-red-500' : progress <= 50 ? 'bg-amber-500' : 'bg-emerald-500'}`}
                     style={{ width: `${progress}%` }}

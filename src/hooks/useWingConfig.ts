@@ -67,7 +67,7 @@ export interface RuleBlock {
 export interface Product {
   id: string;
   name: string;
-  type: 'unit' | 'amount';
+  type: 'unit' | 'amount' | 'both';
   quantity?: number;
   targetQuantity?: number;
   status?: 'full' | 'more_than_half' | 'half' | 'less_than_half' | 'empty';

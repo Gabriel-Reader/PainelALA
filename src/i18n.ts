@@ -180,6 +180,10 @@ export const translations = {
     noProducts: 'Nenhum produto cadastrado',
     noProductsRep: 'Nenhum item adicionado no estoque. Comece adicionando os produtos de limpeza.',
     noProductsResident: 'A lista de estoque da ala ainda não foi configurada pelo representante.',
+    copyShoppingList: 'Copiar Lista',
+    shoppingListTitle: '*Lista de Compras da Ala:*',
+    listCopied: 'Lista copiada para a área de transferência!',
+    noItemsToBuy: 'Não há itens em falta para adicionar à lista.',
 
     // Users Tab
     tabUsers: 'Gerenciar usuários',
@@ -383,6 +387,10 @@ export const translations = {
     noProducts: 'No products registered',
     noProductsRep: 'No items added to the stock. Start by adding cleaning products.',
     noProductsResident: 'The wing stock list has not been configured by the representative yet.',
+    copyShoppingList: 'Copy List',
+    shoppingListTitle: '*Wing Shopping List:*',
+    listCopied: 'List copied to clipboard!',
+    noItemsToBuy: 'No items missing to add to the list.',
 
     // Users Tab
     tabUsers: 'Manage users',

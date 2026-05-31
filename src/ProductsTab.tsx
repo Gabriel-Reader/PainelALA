@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Product } from './hooks/useWingConfig';
-import { Plus, Trash2, Edit2, ShoppingBag, Check, Wallet, Pencil, X } from 'lucide-react';
+import { Plus, Trash2, Edit2, ShoppingBag, Check, Wallet, Pencil, X, Copy } from 'lucide-react';
 import { useLang } from './LanguageContext';
+import { showToast } from './components/Toast';
 
 interface ProductsTabProps {
   products: Product[];
@@ -131,6 +132,50 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
     return Math.min(100, Math.max(0, (quantity / target) * 100));
   };
 
+  const handleCopyList = () => {
+    const itemsToBuy: string[] = [];
+
+    products.forEach(p => {
+      let needsRestock = false;
+      let reason = '';
+
+      if (p.type === 'unit' || p.type === 'both') {
+        const qty = p.quantity || 0;
+        const target = p.targetQuantity || 1;
+        if (qty < target) {
+          needsRestock = true;
+          const missing = target - qty;
+          reason = `${missing} unid.`;
+        }
+      }
+
+      if (p.type === 'amount' || p.type === 'both') {
+        if (p.status === 'empty' || p.status === 'less_than_half') {
+          needsRestock = true;
+          const statusText = getStatusLabel(p.status);
+          reason = reason ? `${reason}, ${statusText}` : statusText;
+        }
+      }
+
+      if (needsRestock) {
+        itemsToBuy.push(`- ${p.name} (${reason})`);
+      }
+    });
+
+    if (itemsToBuy.length === 0) {
+      showToast(t.noItemsToBuy, 'info');
+      return;
+    }
+
+    const textToCopy = `${t.shoppingListTitle}\n\n${itemsToBuy.join('\n')}`;
+    
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      showToast(t.listCopied, 'success');
+    }).catch(err => {
+      console.error('Failed to copy text: ', err);
+    });
+  };
+
   /* ---- FORMULÁRIO DE EDIÇÃO INLINE ---- */
   const renderEditForm = (onSave: () => void, onCancel: () => void) => (
     <div className="flex flex-col gap-4">
@@ -254,6 +299,15 @@ export function ProductsTab({ products, isRep, updateProducts, fundBalance, upda
               )}
             </div>
           </div>
+
+          <button
+            onClick={handleCopyList}
+            className="flex items-center justify-center gap-2 bg-neutral-800 hover:bg-neutral-700 hover:border-neutral-500 active:scale-95 active:bg-neutral-600 border border-neutral-700 text-neutral-300 px-4 py-3 sm:py-2.5 rounded-xl font-bold transition-all duration-200 shadow-sm flex-1 sm:flex-initial"
+            title={t.copyShoppingList}
+          >
+            <Copy size={18} />
+            <span className="hidden sm:inline">{t.copyShoppingList}</span>
+          </button>
 
           {/* Apenas o rep pode adicionar novos produtos */}
           {isRep && !isAdding && (

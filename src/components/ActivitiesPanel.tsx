@@ -146,7 +146,7 @@ export function ActivitiesPanel({
           isSaving={savingFields.has('cleaning')}
           onChange={val => handleFieldChange('cleaning', () => {
             if (val) updateConfig({
-              cleaningResponsible: val,
+              cleaningResponsible: deleteField() as any,
               ...calcWeeklyOffsetUpdates(val)
             });
             else updateConfig({ cleaningResponsible: deleteField() as any });
@@ -172,7 +172,7 @@ export function ActivitiesPanel({
           isSaving={savingFields.has('maintenance')}
           onChange={val => handleFieldChange('maintenance', () => {
             if (val) updateConfig({
-              maintenanceResponsible: val,
+              maintenanceResponsible: deleteField() as any,
               ...calcWeeklyOffsetUpdates(val)
             });
             else updateConfig({ maintenanceResponsible: deleteField() as any });
@@ -198,7 +198,7 @@ export function ActivitiesPanel({
           isSaving={savingFields.has('fridge')}
           onChange={val => handleFieldChange('fridge', () => {
             if (val) updateConfig({
-              fridgeCleaningResponsible: val,
+              fridgeCleaningResponsible: deleteField() as any,
               ...calcFridgeOffsetUpdates(val)
             });
             else updateConfig({ fridgeCleaningResponsible: deleteField() as any });
@@ -224,7 +224,7 @@ export function ActivitiesPanel({
           isSaving={savingFields.has('products')}
           onChange={val => handleFieldChange('products', () => {
             if (val) updateConfig({
-              buyingProductsResponsible: val,
+              buyingProductsResponsible: deleteField() as any,
               ...calcProductsOffsetUpdates(val)
             });
             else updateConfig({ buyingProductsResponsible: deleteField() as any });

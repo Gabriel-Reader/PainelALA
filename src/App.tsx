@@ -309,7 +309,7 @@ function OnboardingScreen({
             </label>
             <input
               type="text"
-              value={name}
+              value={name || ''}
               onChange={(e) => setName(e.target.value)}
               placeholder="Digite como quer ser chamado"
               className="w-full px-4 py-3 rounded-xl bg-neutral-900/60 border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent text-white transition-all duration-200"

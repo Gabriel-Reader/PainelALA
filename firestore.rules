@@ -34,8 +34,12 @@ service cloud.firestore {
     }
 
     function isValidUserUpdate(inc, ext) {
-      return inc.diff(ext).affectedKeys().hasOnly(['role']) &&
-             inc.role is string && (inc.role == 'resident' || inc.role == 'representative' || inc.role == 'dev');
+      let allowedKeys = ['role', 'displayName', 'room', 'theme'];
+      return inc.diff(ext).affectedKeys().hasOnly(allowedKeys) &&
+             (!('role' in inc) || (inc.role is string && (inc.role == 'resident' || inc.role == 'representative' || inc.role == 'dev'))) &&
+             (!('displayName' in inc) || (inc.displayName is string && inc.displayName.size() <= 100)) &&
+             (!('room' in inc) || (inc.room is string && inc.room.size() <= 20)) &&
+             (!('theme' in inc) || (inc.theme is string && inc.theme.size() <= 50));
     }
 
     match /users/{userId} {
@@ -43,7 +47,10 @@ service cloud.firestore {
       allow create: if isVerified() && request.auth.uid == userId && isValidUserCreate(incoming());
       allow update: if isVerified() && isValidId(userId) && (
         isAdmin() ||
-        (request.auth.uid == userId && request.auth.token.email == 'gabrielpinheiro632@gmail.com')
+        (request.auth.uid == userId && 
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'theme', 'room']) &&
+          ( !incoming().diff(existing()).affectedKeys().hasAny(['room']) || !('room' in existing()) )
+        )
       ) && isValidUserUpdate(incoming(), existing());
       allow delete: if isVerified() && (
         request.auth.token.email == 'gabrielpinheiro632@gmail.com' ||

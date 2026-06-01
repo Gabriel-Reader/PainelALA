@@ -55,6 +55,9 @@ export function handleFirestoreError(
 export interface AppProfile {
   email: string;
   role: 'resident' | 'representative' | 'dev';
+  displayName?: string;
+  room?: string;
+  theme?: string;
   createdAt: any;
 }
 
@@ -251,8 +254,27 @@ export function useWingConfig() {
             .finally(() => setProfileLoading(false));
         } else {
           const data = snap.data() as AppProfile;
-          setProfile(data);
-          lsWrite(LS_PROFILE_KEY, data); // persiste no cache
+          
+          // MIGRATION LOGIC
+          const migrations: Record<string, { displayName: string; room: string }> = {
+            'izabellyvflima07@gmail.com': { displayName: 'Izabelly Lima', room: '102' },
+            'tyheusner@gmail.com': { displayName: 'Tífani Heusner', room: '102' },
+            'angelamac3enkeli@gmail.com': { displayName: 'Angela Macedo', room: '101' },
+            'gabrielpinheiro632@gmail.com': { displayName: 'Gabriel Pinheiro', room: '101' },
+            'emilly.furg@gmail.com': { displayName: 'Emilly', room: '103' },
+          };
+          
+          if (migrations[data.email] && (!data.displayName || !data.room)) {
+            const updates = migrations[data.email];
+            updateDoc(userRef, updates).catch(e => console.error('Migration error:', e));
+            const updatedData = { ...data, ...updates };
+            setProfile(updatedData);
+            lsWrite(LS_PROFILE_KEY, updatedData);
+          } else {
+            setProfile(data);
+            lsWrite(LS_PROFILE_KEY, data); // persiste no cache
+          }
+          
           setProfileLoading(false);
         }
       },

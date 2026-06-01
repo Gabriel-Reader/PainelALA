@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
-import { CalendarDays, ClipboardList, Settings, LogOut, Pencil, Languages, CheckSquare, BookOpen, Link2, Package, Wrench, Loader2, Palette, Users } from 'lucide-react';
+import { CalendarDays, ClipboardList, Settings, LogOut, Pencil, Languages, CheckSquare, BookOpen, Link2, Package, Wrench, Loader2, Palette, Users, Check } from 'lucide-react';
 import { signInWithPopup, signInWithRedirect, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { deleteField, doc, updateDoc, getDoc, getDocFromCache, getDocFromServer } from 'firebase/firestore';
 import { auth, db } from './firebase';
@@ -218,6 +218,170 @@ export default function App() {
   );
 }
 
+function OnboardingScreen({
+  user,
+  profile,
+  THEMES,
+}: {
+  user: any;
+  profile: any;
+  THEMES: any[];
+}) {
+  const suggestedName = React.useMemo(() => {
+    if (user?.displayName) {
+      return user.displayName.split(' ')[0];
+    }
+    return '';
+  }, [user]);
+
+  const [name, setName] = useState(suggestedName);
+  const [selectedTheme, setSelectedTheme] = useState('ocean');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const activeTheme = React.useMemo(() => {
+    return THEMES.find((t) => t.key === selectedTheme) || THEMES[0];
+  }, [selectedTheme, THEMES]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--theme-primary', activeTheme.primary);
+    root.style.setProperty('--theme-primary-hover', activeTheme.primaryHover);
+    root.style.setProperty('--theme-header-bg', activeTheme.headerBg);
+    root.style.setProperty('--theme-header-border', activeTheme.headerBorder);
+    root.style.setProperty('--theme-bg', activeTheme.bg);
+    root.style.setProperty('--theme-card-bg', activeTheme.cardBg);
+    root.style.setProperty('--theme-card-border', activeTheme.cardBorder);
+    root.style.setProperty('--theme-accent-light', activeTheme.accentLight);
+  }, [activeTheme]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      setError('Por favor, insira o seu nome.');
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        displayName: name.trim(),
+        theme: selectedTheme,
+      });
+      localStorage.setItem('app_theme_key', selectedTheme);
+    } catch (err: any) {
+      console.error('Error saving onboarding data:', err);
+      setError('Ocorreu um erro ao salvar os seus dados. Tente novamente.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-500" style={{ backgroundColor: 'var(--theme-bg, #171717)', color: '#f3f4f6' }}>
+      <div 
+        className="w-full max-w-md p-8 rounded-2xl border backdrop-blur-md shadow-2xl transition-all duration-300 transform scale-100 hover:scale-[1.01]"
+        style={{ 
+          backgroundColor: 'var(--theme-card-bg, #262626)', 
+          borderColor: 'var(--theme-card-border, #404040)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+        }}
+      >
+        <div className="text-center mb-8">
+          <div className="inline-flex p-3 rounded-full mb-3" style={{ backgroundColor: 'var(--theme-accent-light, rgba(56, 189, 248, 0.1))' }}>
+            <Palette className="w-8 h-8" style={{ color: 'var(--theme-primary, #38bdf8)' }} />
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight">Bem-vindo à Ala!</h2>
+          <p className="text-sm text-neutral-400 mt-2">Personalize sua experiência antes de continuar.</p>
+        </div>
+
+        {error && (
+          <div className="mb-6 p-3 rounded-lg bg-red-950/50 border border-red-500/30 text-red-400 text-sm text-center">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-sm font-semibold text-neutral-300 mb-2">
+              Seu Nome / Apelido
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Digite como quer ser chamado"
+              className="w-full px-4 py-3 rounded-xl bg-neutral-900/60 border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary)] focus:border-transparent text-white transition-all duration-200"
+              maxLength={40}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-neutral-300 mb-3">
+              Escolha o Tema do App
+            </label>
+            <div className="grid grid-cols-1 gap-3">
+              {THEMES.map((themeOption) => {
+                const isSelected = selectedTheme === themeOption.key;
+                return (
+                  <button
+                    key={themeOption.key}
+                    type="button"
+                    onClick={() => setSelectedTheme(themeOption.key)}
+                    className={`flex items-center justify-between p-3.5 rounded-xl border text-left transition-all duration-200 hover:bg-neutral-800/40 ${
+                      isSelected
+                        ? 'border-[var(--theme-primary)] bg-neutral-800/60 shadow-lg'
+                        : 'border-neutral-800 bg-neutral-900/40'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex -space-x-2">
+                        <div className={`w-4 h-4 rounded-full ${themeOption.colors[0]}`} />
+                        <div className={`w-4 h-4 rounded-full ${themeOption.colors[1]}`} />
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium text-white">{themeOption.name}</div>
+                        <div className="text-xs text-neutral-400">{themeOption.desc}</div>
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center bg-[var(--theme-primary)] text-neutral-900">
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-3.5 px-4 rounded-xl font-semibold text-neutral-900 transition-all duration-200 hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ 
+              backgroundColor: 'var(--theme-primary, #38bdf8)',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--theme-primary-hover)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--theme-primary)'}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Salvando...</span>
+              </>
+            ) : (
+              <span>Começar a Usar</span>
+            )}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function AppContent({
   config, updateConfig, user, profile, saveError, clearSaveError, saveWeeklySnapshot, lang, setLang, t,
 }: {
@@ -247,8 +411,12 @@ function AppContent({
   }, [config?.monthlyRotationOffset, config?.monthlyOffsets, user]);
 
   const [activeThemeKey, setActiveThemeKey] = useState<string>(
-    () => localStorage.getItem('app_theme_key') || 'ocean'
+    () => profile.theme || localStorage.getItem('app_theme_key') || 'ocean'
   );
+  
+  if (!profile.displayName) {
+    return <OnboardingScreen user={user} profile={profile} THEMES={THEMES} />;
+  }
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   const [activeView, setActiveView] = useState<string>(() => {

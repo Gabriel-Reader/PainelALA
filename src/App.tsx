@@ -1073,7 +1073,7 @@ function AppContent({
               </div>
             )}
             <NotificationBell
-              isDev={isDev}
+              isDev={isRep}
               onNavigateToTab={(tab) => handleSetActiveTab(tab as any)}
             />
             <div className="relative h-8 sm:h-9">

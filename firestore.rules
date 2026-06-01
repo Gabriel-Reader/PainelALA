@@ -139,26 +139,17 @@ service cloud.firestore {
     // --- Notifications ---
     match /notifications/{notifId} {
       allow read: if isSignedIn();
-      allow create: if isVerified() && (
-        request.auth.token.email == 'gabrielpinheiro632@gmail.com' ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dev'
-      ) &&
+      allow create: if isAdmin() &&
         incoming().keys().hasAll(['category', 'title', 'blocks', 'createdAt', 'createdBy']) &&
         incoming().title is string && incoming().title.size() <= 200 &&
         incoming().category is string &&
         incoming().blocks is list && incoming().blocks.size() <= 50 &&
         incoming().createdAt == request.time;
-      allow update: if isVerified() && (
-        request.auth.token.email == 'gabrielpinheiro632@gmail.com' ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dev'
-      ) &&
+      allow update: if isAdmin() &&
         incoming().title is string && incoming().title.size() <= 200 &&
         incoming().category is string &&
         incoming().blocks is list && incoming().blocks.size() <= 50;
-      allow delete: if isVerified() && (
-        request.auth.token.email == 'gabrielpinheiro632@gmail.com' ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dev'
-      );
+      allow delete: if isAdmin();
     }
   }
 }

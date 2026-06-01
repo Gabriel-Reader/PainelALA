@@ -12,6 +12,7 @@ import { PromptModal } from './components/PromptModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { ToastContainer, showToast } from './components/Toast';
 import { UsersTab } from './components/UsersTab';
+import { NotificationBell } from './components/NotificationsPanel';
 import { InstallPrompt } from './components/InstallPrompt';
 import { useLang } from './LanguageContext';
 import { ROOMS } from './constants';
@@ -1071,6 +1072,10 @@ function AppContent({
                   className="bg-transparent text-white border-none rounded p-0 text-xs sm:text-sm focus:outline-none focus:ring-0 [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert" />
               </div>
             )}
+            <NotificationBell
+              isDev={isDev}
+              onNavigateToTab={(tab) => handleSetActiveTab(tab as any)}
+            />
             <div className="relative h-8 sm:h-9">
               <button
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}

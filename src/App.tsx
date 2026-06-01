@@ -105,6 +105,8 @@ function lazyWithRetry<T extends React.ComponentType<any>>(componentImport: () =
       if (!pageHasAlreadyBeenForceRefreshed) {
         if (window.confirm('Uma nova atualização do sistema foi publicada. Para acessar esta aba, é necessário recarregar a página. Recarregar agora?')) {
           window.sessionStorage.setItem('page-has-been-force-refreshed', 'true');
+          const bc = new BroadcastChannel('app-update');
+          bc.postMessage('force-reload');
           window.location.reload();
           return new Promise<{ default: T }>(() => {});
         }

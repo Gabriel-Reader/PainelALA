@@ -6,6 +6,27 @@ import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { LanguageProvider } from './LanguageContext.tsx';
 import './index.css';
 
+declare const __APP_VERSION__: string;
+
+const updateChannel = new BroadcastChannel('app-update');
+const currentVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
+
+const storedVersion = localStorage.getItem('app_version');
+if (storedVersion !== currentVersion) {
+  localStorage.setItem('app_version', currentVersion);
+  updateChannel.postMessage({ type: 'version_changed', version: currentVersion });
+}
+
+updateChannel.onmessage = (event) => {
+  if (event.data === 'force-reload') {
+    window.location.reload();
+  } else if (event.data?.type === 'version_changed') {
+    if (event.data.version !== currentVersion) {
+      window.location.reload();
+    }
+  }
+};
+
 // Filtra logs automáticos do Vite HMR e do React DevTools no desenvolvimento
 if (import.meta.env.DEV) {
   const filterLogs = (fn: (...args: any[]) => void) => {
@@ -30,6 +51,7 @@ if (import.meta.env.DEV) {
     if (!isRefreshed) {
       if (window.confirm('Uma nova atualização do sistema foi publicada. Para acessar todos os recursos, é necessário recarregar a página. Recarregar agora?')) {
         sessionStorage.setItem('vite-preload-refreshed', 'true');
+        updateChannel.postMessage('force-reload');
         console.warn('Vite preload error detected. Forcing page reload...');
         window.location.reload();
       }

@@ -202,6 +202,12 @@ export default function App() {
     </div>
   );
 
+  // Se o usuário ainda não tem nome (onboarding), mostra a tela de boas-vindas
+  // Feito aqui no App (fora do AppContent) para não violar as Regras dos Hooks.
+  if (!profile.displayName) {
+    return <OnboardingScreen user={user} profile={profile} THEMES={THEMES} />;
+  }
+
   return (
     <AppContent
       config={config}
@@ -401,6 +407,12 @@ function AppContent({
   const isGabriel = user?.email === 'gabrielpinheiro632@gmail.com';
   const realRole = isGabriel ? 'dev' : profile.role;
 
+  // Todos os hooks devem ser declarados incondicionalmente (Regras dos Hooks)
+  const [activeThemeKey, setActiveThemeKey] = useState<string>(
+    () => profile.theme || localStorage.getItem('app_theme_key') || 'ocean'
+  );
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
   // Temporary migration
   React.useEffect(() => {
     if (config && user && config.monthlyRotationOffset === 4 && !config.monthlyOffsets) {
@@ -410,15 +422,6 @@ function AppContent({
     }
   }, [config?.monthlyRotationOffset, config?.monthlyOffsets, user]);
 
-  const [activeThemeKey, setActiveThemeKey] = useState<string>(
-    () => profile.theme || localStorage.getItem('app_theme_key') || 'ocean'
-  );
-  
-  if (!profile.displayName) {
-    return <OnboardingScreen user={user} profile={profile} THEMES={THEMES} />;
-  }
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  
   const [activeView, setActiveView] = useState<string>(() => {
     const saved = localStorage.getItem(`painel_active_view_${user.uid}`);
     if (saved) {

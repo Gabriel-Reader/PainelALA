@@ -53,6 +53,17 @@ const LS_READ_KEY = 'notifications_read_ts';
 const getReadTs = () => parseInt(localStorage.getItem(LS_READ_KEY) || '0', 10);
 const markAllRead = () => localStorage.setItem(LS_READ_KEY, Date.now().toString());
 
+const renderInlineBold = (text: string) => {
+  if (!text) return null;
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+      return <strong key={i} className="font-bold text-white">{part.slice(2, -2)}</strong>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // NotificationBell
 // ─────────────────────────────────────────────────────────────────────────────
@@ -267,7 +278,9 @@ function NotificationCard({ notification: n, isDev, onNavigateToTab, onEdit }: {
             <div className="mt-2 space-y-2.5 text-sm text-neutral-300 border-l-2 border-neutral-700 pl-3">
               {n.blocks.map((block, i) => {
                 if (block.type === 'text') return (
-                  <p key={i} className={`break-words ${block.bold ? 'font-bold text-white' : 'text-neutral-300'}`}>{block.text}</p>
+                  <p key={i} className={`break-words ${block.bold ? 'font-bold text-white' : 'text-neutral-300'}`}>
+                    {renderInlineBold(block.text)}
+                  </p>
                 );
                 if (block.type === 'list') return (
                   <ul key={i} className="space-y-1 list-disc list-inside text-neutral-300">
@@ -427,13 +440,12 @@ function NotificationComposer({ onClose, editing }: { onClose: () => void; editi
                     <div className="flex items-center gap-1.5">
                       {block.type === 'text' && (
                         <button
-                          onClick={() => updateBlock(i, { bold: !block.bold })}
-                          title={block.bold ? 'Remover negrito' : 'Adicionar negrito'}
-                          className={`flex items-center justify-center w-8 h-8 rounded-lg font-black text-sm transition-all border ${
-                            block.bold
-                              ? 'bg-[var(--theme-primary)] text-neutral-900 border-transparent shadow'
-                              : 'bg-neutral-700 text-neutral-400 border-neutral-600 hover:text-white active:bg-neutral-600'
-                          }`}
+                          onClick={() => {
+                            const newText = block.text + (block.text && !block.text.endsWith(' ') ? ' ' : '') + '**negrito**';
+                            updateBlock(i, { text: newText });
+                          }}
+                          title="Adicionar negrito"
+                          className="flex items-center justify-center w-8 h-8 rounded-lg font-black text-sm transition-all border bg-neutral-700 text-neutral-400 border-neutral-600 hover:text-white active:bg-neutral-600"
                         >
                           B
                         </button>
@@ -453,7 +465,7 @@ function NotificationComposer({ onClose, editing }: { onClose: () => void; editi
                       <textarea
                         value={block.text}
                         onChange={e => updateBlock(i, { text: e.target.value })}
-                        placeholder="Escreva o parágrafo aqui..."
+                        placeholder="Escreva aqui... Use **texto** para negrito."
                         rows={3}
                         className={`w-full bg-transparent text-sm focus:outline-none resize-none placeholder:text-neutral-600 ${block.bold ? 'font-bold text-white' : 'text-neutral-200'}`}
                       />

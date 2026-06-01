@@ -268,7 +268,7 @@ function NotificationCard({ notification: n, isDev, onNavigateToTab, onEdit }: {
         <>
           <button
             onClick={() => setExpanded(e => !e)}
-            className="inline-flex items-center gap-1.5 mt-2.5 -ml-3 sm:ml-0 text-sm sm:text-xs font-medium text-[var(--theme-primary)] bg-[var(--theme-primary)]/10 sm:bg-transparent hover:bg-[var(--theme-primary)]/20 active:bg-[var(--theme-primary)]/30 sm:hover:underline transition-colors py-2.5 sm:py-1 px-3 sm:px-0 rounded-xl sm:rounded-none"
+            className="inline-flex items-center gap-1.5 mt-2.5 text-sm sm:text-xs font-medium text-[var(--theme-primary)] bg-[var(--theme-primary)]/10 sm:bg-transparent hover:bg-[var(--theme-primary)]/20 active:bg-[var(--theme-primary)]/30 sm:hover:underline transition-colors py-2.5 sm:py-1 px-3 sm:px-0 rounded-xl sm:rounded-none"
           >
             <ChevronRight size={16} className={`sm:w-[13px] sm:h-[13px] transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} />
             {expanded ? 'Recolher' : 'Ver detalhes'}

@@ -49,12 +49,9 @@ if (import.meta.env.DEV) {
     event.preventDefault();
     const isRefreshed = sessionStorage.getItem('vite-preload-refreshed');
     if (!isRefreshed) {
-      if (window.confirm('Uma nova atualização do sistema foi publicada. Para acessar todos os recursos, é necessário recarregar a página. Recarregar agora?')) {
-        sessionStorage.setItem('vite-preload-refreshed', 'true');
-        updateChannel.postMessage('force-reload');
-        console.warn('Vite preload error detected. Forcing page reload...');
-        window.location.reload();
-      }
+      window.dispatchEvent(new CustomEvent('show-update-prompt', {
+        detail: { message: 'Uma nova atualização do sistema foi publicada. Para acessar todos os recursos, é necessário recarregar a página.' }
+      }));
     }
   });
 }

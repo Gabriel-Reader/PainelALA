@@ -14,6 +14,7 @@ import { ToastContainer, showToast } from './components/Toast';
 import { UsersTab } from './components/UsersTab';
 import { NotificationBell } from './components/NotificationsPanel';
 import { InstallPrompt } from './components/InstallPrompt';
+import { UpdatePrompt } from './components/UpdatePrompt';
 import { useLang } from './LanguageContext';
 import { ROOMS } from './constants';
 import { getWeekNumber, EPOCH_REFERENCE_DATE, getEffectiveOffset } from './utils/date';
@@ -103,13 +104,10 @@ function lazyWithRetry<T extends React.ComponentType<any>>(componentImport: () =
       return component;
     } catch (error) {
       if (!pageHasAlreadyBeenForceRefreshed) {
-        if (window.confirm('Uma nova atualização do sistema foi publicada. Para acessar esta aba, é necessário recarregar a página. Recarregar agora?')) {
-          window.sessionStorage.setItem('page-has-been-force-refreshed', 'true');
-          const bc = new BroadcastChannel('app-update');
-          bc.postMessage('force-reload');
-          window.location.reload();
-          return new Promise<{ default: T }>(() => {});
-        }
+        window.dispatchEvent(new CustomEvent('show-update-prompt', {
+          detail: { message: 'Uma nova atualização do sistema foi publicada. Para acessar esta aba, é necessário recarregar a página.' }
+        }));
+        return new Promise<{ default: T }>(() => {}); // Fica carregando pendente
       }
       throw error;
     }
@@ -1290,6 +1288,7 @@ function AppContent({
         <PromptModal title={promptConfig.title} initialValue={promptConfig.initialValue} onSave={(val) => { promptConfig.onSave(val); setPromptConfig(null); }} onClose={() => setPromptConfig(null)} />
       )}
       <InstallPrompt />
+      <UpdatePrompt />
     </div>
   );
 }

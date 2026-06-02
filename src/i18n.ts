@@ -180,7 +180,7 @@ export const translations = {
     noProducts: 'Nenhum produto cadastrado',
     noProductsRep: 'Nenhum item adicionado no estoque. Comece adicionando os produtos de limpeza.',
     noProductsResident: 'A lista de estoque da ala ainda não foi configurada pelo representante.',
-    copyShoppingList: 'Copiar Lista',
+    copyShoppingList: 'Criar Lista',
     shoppingListTitle: '*Lista de Compras da Ala:*',
     listCopied: 'Lista copiada para a área de transferência!',
     noItemsToBuy: 'Não há itens em falta para adicionar à lista.',

@@ -215,9 +215,6 @@ export function GeneralRulesTab({ config, isRep, updateConfig, currentGeneralRul
       </div>
 
       <div className="flex justify-end gap-3 flex-wrap no-print">
-        <button onClick={() => window.print()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-lg shadow-sm border border-indigo-500/50 flex items-center gap-2 transition-colors">
-          <CheckSquare size={18} /> Imprimir Regras
-        </button>
         <button onClick={() => handleCopyImage()} className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-medium py-2.5 px-4 rounded-lg shadow-sm border border-neutral-700 flex items-center gap-2 transition-colors">
           <ImageIcon size={18} /> Exportar Todas
         </button>

@@ -19,7 +19,6 @@ export const db = initializeFirestore(app, {
     tabManager: persistentMultipleTabManager(),
     cacheSizeBytes: CACHE_SIZE_UNLIMITED,
   }),
-  experimentalForceLongPolling: true,
 }, dbId);
 
 // Auth: persistência local (sobrevive a fechar o browser)

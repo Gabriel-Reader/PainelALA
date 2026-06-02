@@ -286,7 +286,7 @@ function OnboardingScreen({
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-500" style={{ backgroundColor: 'var(--theme-bg, #171717)', color: '#f3f4f6' }}>
+    <div data-theme={activeTheme.key} className="min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-500" style={{ backgroundColor: 'var(--theme-bg, #171717)', color: '#f3f4f6' }}>
       <div 
         className="w-full max-w-md p-8 rounded-2xl border backdrop-blur-md shadow-2xl transition-all duration-300 transform scale-100 hover:scale-[1.01]"
         style={{ 
@@ -978,7 +978,7 @@ function AppContent({
   }
 
   return (
-    <div className="min-h-screen bg-[var(--theme-bg)] text-neutral-100 font-sans transition-colors duration-300">
+    <div data-theme={activeTheme.key} className="min-h-screen bg-[var(--theme-bg)] text-neutral-100 font-sans transition-colors duration-300">
       <style>{`
         :root {
           --theme-bg: ${activeTheme.bg};
@@ -1184,7 +1184,7 @@ function AppContent({
             return (
               <div key={tab.key} className="flex items-center shrink-0">
                 <button onClick={() => handleSetActiveTab(tab.key)}
-                  className={`flex items-center gap-2 px-5 py-3 font-medium text-[13px] whitespace-nowrap transition-all rounded-t-lg border-b-2 ${
+                  className={`flex items-center gap-2 px-5 py-3 font-medium text-[13px] whitespace-nowrap transition-all duration-200 active:scale-90 active:opacity-70 rounded-t-lg border-b-2 ${
                     isActive 
                     ? 'bg-black/10 text-white border-[var(--theme-primary)]' 
                     : 'text-white/60 border-transparent hover:text-white hover:bg-black/5'
@@ -1204,7 +1204,7 @@ function AppContent({
         </div>
       </header>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 sm:pb-8">
-        <div key={activeTab} className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div key={activeTab} className="animate-in fade-in zoom-in-[0.98] slide-in-from-bottom-6 duration-500 ease-out fill-mode-both">
         {activeTab === 'main' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-3 space-y-6 flex flex-col">
@@ -1278,7 +1278,7 @@ function AppContent({
           const isActive = activeTab === tab.key;
           return (
             <button key={tab.key} onClick={() => handleSetActiveTab(tab.key)}
-              className={`min-w-0 min-w-[50px] shrink flex-1 flex flex-col items-center justify-center gap-1 py-3 px-0.5 transition-all duration-200 relative ${isActive ? 'text-[var(--theme-primary)]' : 'text-neutral-500 hover:text-neutral-300'}`}>
+              className={`min-w-0 min-w-[50px] shrink flex-1 flex flex-col items-center justify-center gap-1 py-3 px-0.5 transition-all duration-200 active:scale-90 active:opacity-70 relative ${isActive ? 'text-[var(--theme-primary)]' : 'text-neutral-500 hover:text-neutral-300'}`}>
               {isActive && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-[var(--theme-primary)]" />}
               <span className={`transition-transform duration-200 ${isActive ? 'scale-110' : 'scale-100'}`}>{tab.icon}</span>
               <span className="text-[9px] font-semibold leading-tight text-center whitespace-pre-line">{tab.mobileLabel}</span>

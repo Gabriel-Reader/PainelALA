@@ -62,7 +62,13 @@ export function MaintenanceTab({ config, isAdmin, updateConfig, forceMode = 'vie
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in duration-300">
+      
+      <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+        <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+        <p className="text-red-200 text-sm font-medium">Este recurso ainda não está no ar. As solicitações de manutenção enviadas por aqui não serão processadas no momento.</p>
+      </div>
+
       <div className="bg-sky-900/20 border border-sky-800/50 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
         <div className="p-3 bg-sky-900/40 rounded-xl shrink-0">
           <AlertCircle className="w-6 h-6 text-sky-400" />

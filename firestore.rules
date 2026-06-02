@@ -78,6 +78,9 @@ service cloud.firestore {
              (!('rulesCardDescription' in data) || (data.rulesCardDescription is string && data.rulesCardDescription.size() <= 2000)) &&
              (!('generalRulesCardTitle' in data) || (data.generalRulesCardTitle is string && data.generalRulesCardTitle.size() <= 200)) &&
              (!('generalRulesCardDescription' in data) || (data.generalRulesCardDescription is string && data.generalRulesCardDescription.size() <= 2000)) &&
+             (!('roleDevDesc' in data) || (data.roleDevDesc is string && data.roleDevDesc.size() <= 2000)) &&
+             (!('roleRepDesc' in data) || (data.roleRepDesc is string && data.roleRepDesc.size() <= 2000)) &&
+             (!('roleResDesc' in data) || (data.roleResDesc is string && data.roleResDesc.size() <= 2000)) &&
              (!('cleaningRules' in data) || (data.cleaningRules is list && data.cleaningRules.size() <= 100)) &&
              (!('ruleBlocks' in data) || (data.ruleBlocks is list && data.ruleBlocks.size() <= 50)) &&
              (!('generalRuleBlocks' in data) || (data.generalRuleBlocks is list && data.generalRuleBlocks.size() <= 50)) &&
@@ -119,7 +122,8 @@ service cloud.firestore {
          'appTitle', 'appSubtitle',
          'tabMainName', 'tabRulesName', 'tabGeneralRulesName', 'tabLinksName', 'tabProductsName', 'tabMaintenanceName',
          'maintenanceDescription', 'maintenanceField1Title', 'maintenanceField2Title', 'maintenanceField3Title',
-         'rulesCardTitle', 'rulesCardDescription', 'generalRulesCardTitle', 'generalRulesCardDescription'
+         'rulesCardTitle', 'rulesCardDescription', 'generalRulesCardTitle', 'generalRulesCardDescription',
+         'roleDevDesc', 'roleRepDesc', 'roleResDesc'
        ];
        return inc.diff(ext).affectedKeys().hasOnly(allowedKeys);
     }
@@ -141,11 +145,13 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isAdmin() &&
         incoming().keys().hasAll(['category', 'title', 'blocks', 'createdAt', 'createdBy']) &&
+        (!('pinned' in incoming()) || incoming().pinned is bool) &&
         incoming().title is string && incoming().title.size() <= 200 &&
         incoming().category is string &&
         incoming().blocks is list && incoming().blocks.size() <= 50 &&
         incoming().createdAt == request.time;
       allow update: if isAdmin() &&
+        (!('pinned' in incoming()) || incoming().pinned is bool) &&
         incoming().title is string && incoming().title.size() <= 200 &&
         incoming().category is string &&
         incoming().blocks is list && incoming().blocks.size() <= 50;

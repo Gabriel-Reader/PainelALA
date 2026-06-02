@@ -214,7 +214,10 @@ export function GeneralRulesTab({ config, isRep, updateConfig, currentGeneralRul
         </div>
       </div>
 
-      <div className="flex justify-end gap-3 flex-wrap">
+      <div className="flex justify-end gap-3 flex-wrap no-print">
+        <button onClick={() => window.print()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-lg shadow-sm border border-indigo-500/50 flex items-center gap-2 transition-colors">
+          <CheckSquare size={18} /> Imprimir Regras
+        </button>
         <button onClick={() => handleCopyImage()} className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-medium py-2.5 px-4 rounded-lg shadow-sm border border-neutral-700 flex items-center gap-2 transition-colors">
           <ImageIcon size={18} /> Exportar Todas
         </button>
@@ -225,7 +228,7 @@ export function GeneralRulesTab({ config, isRep, updateConfig, currentGeneralRul
         )}
       </div>
 
-      <div ref={rulesContainerRef} className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start p-2 -m-2 sm:p-4 sm:-m-4 bg-[#171717] rounded-xl">
+      <div ref={rulesContainerRef} className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start p-2 -m-2 sm:p-4 sm:-m-4 bg-[#171717] rounded-xl print-area">
         {currentGeneralRuleBlocks.map((block, i) => (
           <div key={block.id} className="bg-neutral-800 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-neutral-700 overflow-hidden flex flex-col items-start h-max pb-0 relative group">
             {isRep && (

@@ -19,7 +19,7 @@ import { useWingConfig } from '../hooks/useWingConfig';
 import { ROOMS } from '../constants';
 
 export function UsersTab() {
-  const { profile, user: currentUser } = useWingConfig();
+  const { profile, user: currentUser, config, updateConfig } = useWingConfig();
   const isDev = profile?.role === 'dev' || currentUser?.email === 'gabrielpinheiro632@gmail.com';
   const { t, lang } = useLang();
   const [users, setUsers] = useState<AppProfile[]>([]);
@@ -29,6 +29,8 @@ export function UsersTab() {
 
   const [editingNameUid, setEditingNameUid] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState('');
+  const [editingRoleText, setEditingRoleText] = useState<'dev' | 'rep' | 'res' | null>(null);
+  const [roleTextValue, setRoleTextValue] = useState('');
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, 'users'), (snap) => {
@@ -252,6 +254,69 @@ export function UsersTab() {
             </table>
           </div>
         </div>
+        
+        {/* Legenda de Acessos */}
+        <div className="mt-6 bg-neutral-800/40 border border-neutral-700/50 rounded-xl p-4 sm:p-5">
+          <h3 className="text-[13px] font-bold text-neutral-300 uppercase tracking-wider mb-3">Níveis de Acesso</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            
+            <div className="bg-black/20 p-3 rounded-lg border border-neutral-800/50 relative group/card">
+              <span className="text-sm font-bold text-[var(--theme-primary)] block mb-1">Dev (Administrador)</span>
+              {editingRoleText === 'dev' ? (
+                 <div className="flex flex-col gap-2 mt-2 animate-in fade-in">
+                   <textarea value={roleTextValue} onChange={e => setRoleTextValue(e.target.value)} className="text-xs bg-neutral-900 border border-neutral-700 rounded p-2 text-white w-full h-24 resize-none focus:outline-none focus:border-sky-500" />
+                   <div className="flex gap-2 justify-end">
+                     <button onClick={() => setEditingRoleText(null)} className="text-[10px] bg-neutral-700 hover:bg-neutral-600 px-3 py-1.5 rounded uppercase font-bold text-neutral-300">Cancelar</button>
+                     <button onClick={() => { updateConfig({ roleDevDesc: roleTextValue }); setEditingRoleText(null); }} className="text-[10px] bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded uppercase font-bold text-white">Salvar</button>
+                   </div>
+                 </div>
+              ) : (
+                <>
+                  <p className="text-xs text-neutral-400 leading-relaxed whitespace-pre-line">{config?.roleDevDesc || 'Acesso total ao sistema. Pode excluir usuários, editar configurações globais, alterar e excluir notificações, regras e estoques sem restrições.'}</p>
+                  {isDev && <button onClick={() => { setRoleTextValue(config?.roleDevDesc || 'Acesso total ao sistema. Pode excluir usuários, editar configurações globais, alterar e excluir notificações, regras e estoques sem restrições.'); setEditingRoleText('dev'); }} className="absolute top-2 right-2 opacity-0 group-hover/card:opacity-100 text-sky-400 p-1 hover:bg-sky-400/10 rounded transition-all"><Pencil size={12} /></button>}
+                </>
+              )}
+            </div>
+
+            <div className="bg-black/20 p-3 rounded-lg border border-neutral-800/50 relative group/card">
+              <span className="text-sm font-bold text-sky-400 block mb-1">Representante</span>
+              {editingRoleText === 'rep' ? (
+                 <div className="flex flex-col gap-2 mt-2 animate-in fade-in">
+                   <textarea value={roleTextValue} onChange={e => setRoleTextValue(e.target.value)} className="text-xs bg-neutral-900 border border-neutral-700 rounded p-2 text-white w-full h-24 resize-none focus:outline-none focus:border-sky-500" />
+                   <div className="flex gap-2 justify-end">
+                     <button onClick={() => setEditingRoleText(null)} className="text-[10px] bg-neutral-700 hover:bg-neutral-600 px-3 py-1.5 rounded uppercase font-bold text-neutral-300">Cancelar</button>
+                     <button onClick={() => { updateConfig({ roleRepDesc: roleTextValue }); setEditingRoleText(null); }} className="text-[10px] bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded uppercase font-bold text-white">Salvar</button>
+                   </div>
+                 </div>
+              ) : (
+                <>
+                  <p className="text-xs text-neutral-400 leading-relaxed whitespace-pre-line">{config?.roleRepDesc || 'Gerencia a ala. Pode criar, editar e excluir avisos, regras, itens do estoque, links úteis e configurar dias de limpeza.'}</p>
+                  {isDev && <button onClick={() => { setRoleTextValue(config?.roleRepDesc || 'Gerencia a ala. Pode criar, editar e excluir avisos, regras, itens do estoque, links úteis e configurar dias de limpeza.'); setEditingRoleText('rep'); }} className="absolute top-2 right-2 opacity-0 group-hover/card:opacity-100 text-sky-400 p-1 hover:bg-sky-400/10 rounded transition-all"><Pencil size={12} /></button>}
+                </>
+              )}
+            </div>
+
+            <div className="bg-black/20 p-3 rounded-lg border border-neutral-800/50 relative group/card">
+              <span className="text-sm font-bold text-neutral-300 block mb-1">Morador</span>
+              {editingRoleText === 'res' ? (
+                 <div className="flex flex-col gap-2 mt-2 animate-in fade-in">
+                   <textarea value={roleTextValue} onChange={e => setRoleTextValue(e.target.value)} className="text-xs bg-neutral-900 border border-neutral-700 rounded p-2 text-white w-full h-24 resize-none focus:outline-none focus:border-sky-500" />
+                   <div className="flex gap-2 justify-end">
+                     <button onClick={() => setEditingRoleText(null)} className="text-[10px] bg-neutral-700 hover:bg-neutral-600 px-3 py-1.5 rounded uppercase font-bold text-neutral-300">Cancelar</button>
+                     <button onClick={() => { updateConfig({ roleResDesc: roleTextValue }); setEditingRoleText(null); }} className="text-[10px] bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded uppercase font-bold text-white">Salvar</button>
+                   </div>
+                 </div>
+              ) : (
+                <>
+                  <p className="text-xs text-neutral-400 leading-relaxed whitespace-pre-line">{config?.roleResDesc || 'Acesso padrão. Pode visualizar avisos, regras e links, e realizar o "check" em suas próprias escalas de limpeza e tarefas diárias.'}</p>
+                  {isDev && <button onClick={() => { setRoleTextValue(config?.roleResDesc || 'Acesso padrão. Pode visualizar avisos, regras e links, e realizar o "check" em suas próprias escalas de limpeza e tarefas diárias.'); setEditingRoleText('res'); }} className="absolute top-2 right-2 opacity-0 group-hover/card:opacity-100 text-sky-400 p-1 hover:bg-sky-400/10 rounded transition-all"><Pencil size={12} /></button>}
+                </>
+              )}
+            </div>
+
+          </div>
+        </div>
+
       </div>
 
       <ConfirmModal

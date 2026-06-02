@@ -1065,13 +1065,7 @@ function AppContent({
             </p>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0 relative">
-            {isDev && (
-              <div className="flex items-center gap-1 sm:gap-2 bg-black/10 hover:bg-black/20 transition-colors px-1.5 sm:px-3 py-1 sm:py-2 rounded-lg border border-white/5">
-                <label htmlFor="mockDate" className="hidden sm:block text-[10px] uppercase font-bold tracking-wider text-sky-300">{t.testDay}</label>
-                <input type="date" id="mockDate" value={mockDateStr} onChange={e => setMockDateStr(e.target.value)}
-                  className="bg-transparent text-white border-none rounded p-0 text-xs sm:text-sm focus:outline-none focus:ring-0 [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert" />
-              </div>
-            )}
+
             <NotificationBell
               isDev={isRep}
               onNavigateToTab={(tab) => handleSetActiveTab(tab as any)}
@@ -1127,6 +1121,15 @@ function AppContent({
                             <option value="representative" className="text-black">{t.visionRep}</option>
                             {realRole === 'dev' && <option value="dev" className="text-black">{t.visionDev}</option>}
                           </select>
+                        </div>
+                      )}
+
+                      {/* Mock Date */}
+                      {isDev && (
+                        <div>
+                          <label htmlFor="mockDateSettings" className="text-[10px] uppercase font-bold tracking-wider text-sky-400 mb-2 block">{t.testDay}</label>
+                          <input type="date" id="mockDateSettings" value={mockDateStr} onChange={e => setMockDateStr(e.target.value)}
+                            className="w-full bg-black/20 text-white border border-white/10 rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none focus:border-sky-500 transition-colors [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert" />
                         </div>
                       )}
 
@@ -1201,6 +1204,7 @@ function AppContent({
         </div>
       </header>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 sm:pb-8">
+        <div key={activeTab} className="animate-in fade-in slide-in-from-bottom-4 duration-300">
         {activeTab === 'main' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-3 space-y-6 flex flex-col">
@@ -1267,6 +1271,7 @@ function AppContent({
         {activeTab === 'users' && isDev && (
           <UsersTab />
         )}
+        </div>
       </main>
       <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-neutral-900/95 backdrop-blur-md border-t border-neutral-700/80 shadow-[0_-4px_24px_-4px_rgba(0,0,0,0.6)] flex overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
         {NAV_TABS.map(tab => {

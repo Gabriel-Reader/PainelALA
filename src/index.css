@@ -14,3 +14,24 @@ body {
     transform: translateX(0);
   }
 }
+
+@media print {
+  @page { margin: 1cm; }
+  body { background: white !important; color: black !important; }
+  .no-print { display: none !important; }
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: white !important;
+  }
+  .print-area * {
+    color: black !important;
+    border-color: #ddd !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+}

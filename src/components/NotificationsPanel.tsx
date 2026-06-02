@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Bell, X, Plus, Trash2, AlertTriangle, Zap, Tag, Pencil,
-  Bold, List, Link as LinkIcon, Send, ExternalLink, ChevronRight,
+  Bold, List, Link as LinkIcon, Send, ExternalLink, ChevronRight, Pin
 } from 'lucide-react';
 import {
   collection, onSnapshot, addDoc, deleteDoc, updateDoc, doc, serverTimestamp,
-  orderBy, query,
+  orderBy, query, limit
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { showToast } from './Toast';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -27,6 +29,7 @@ export interface AppNotification {
   blocks: NotificationBlock[];
   createdAt: any;
   createdBy: string;
+  pinned?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -53,17 +56,6 @@ const LS_READ_KEY = 'notifications_read_ts';
 const getReadTs = () => parseInt(localStorage.getItem(LS_READ_KEY) || '0', 10);
 const markAllRead = () => localStorage.setItem(LS_READ_KEY, Date.now().toString());
 
-const renderInlineBold = (text: string) => {
-  if (!text) return null;
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
-      return <strong key={i} className="font-bold text-white">{part.slice(2, -2)}</strong>;
-    }
-    return <span key={i}>{part}</span>;
-  });
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // NotificationBell
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,10 +66,12 @@ export function NotificationBell({ isDev, onNavigateToTab }: { isDev: boolean; o
   const [isComposing, setIsComposing] = useState(false);
   const [editingNotification, setEditingNotification] = useState<AppNotification | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [filter, setFilter] = useState<'all' | 'aviso' | 'atualizacao' | 'outro'>('all');
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'));
+    // Optimization: limit the payload to 30 recent notifications
+    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(30));
     return onSnapshot(q, (snap) => {
       const data: AppNotification[] = [];
       snap.forEach(d => data.push({ id: d.id, ...d.data() } as AppNotification));
@@ -109,24 +103,33 @@ export function NotificationBell({ isDev, onNavigateToTab }: { isDev: boolean; o
     setIsComposing(true);
   };
 
+  const displayNotifications = useMemo(() => {
+    let list = filter === 'all' ? notifications : notifications.filter(n => n.category === filter);
+    return list.sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return 0; // The query is already sorted by createdAt descending
+    });
+  }, [notifications, filter]);
+
   return (
     <div className="relative" ref={panelRef}>
       {/* Bell Button */}
       <button
         onClick={handleOpen}
-        className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 bg-black/10 hover:bg-black/20 active:bg-black/30 text-white border border-white/5 rounded-xl transition-colors"
+        className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 bg-black/10 hover:bg-black/20 active:bg-black/30 text-white border border-white/5 rounded-xl transition-all hover:scale-[1.05]"
         aria-label="Notificações"
       >
         <Bell size={18} className={unreadCount > 0 ? 'text-[var(--theme-primary)]' : 'text-white/70'} />
         {unreadCount > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-[20px] px-1 bg-[var(--theme-primary)] text-neutral-900 text-[11px] font-bold rounded-full flex items-center justify-center leading-none shadow-lg">
+          <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-[20px] px-1 bg-[var(--theme-primary)] text-neutral-900 text-[11px] font-bold rounded-full flex items-center justify-center leading-none shadow-lg transition-transform scale-in">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
       {/* Mobile overlay */}
-      {isOpen && <div className="sm:hidden fixed inset-0 bg-black/50 z-[55]" onClick={() => setIsOpen(false)} />}
+      {isOpen && <div className="sm:hidden fixed inset-0 bg-black/50 z-[55] transition-opacity" onClick={() => setIsOpen(false)} />}
 
       {/* Panel — bottom-sheet on mobile, dropdown on desktop */}
       {isOpen && (
@@ -139,6 +142,7 @@ export function NotificationBell({ isDev, onNavigateToTab }: { isDev: boolean; o
           rounded-t-2xl sm:rounded-2xl
           shadow-2xl overflow-hidden
           max-h-[85vh] sm:max-h-[80vh] sm:w-[24rem]
+          animate-in slide-in-from-bottom-4 sm:slide-in-from-top-4 fade-in duration-200
         ">
           {/* Drag handle on mobile */}
           <div className="sm:hidden flex justify-center pt-2.5 pb-1 shrink-0">
@@ -158,23 +162,36 @@ export function NotificationBell({ isDev, onNavigateToTab }: { isDev: boolean; o
               {isDev && (
                 <button
                   onClick={() => { setIsOpen(false); setEditingNotification(null); setIsComposing(true); }}
-                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[var(--theme-primary)] bg-[var(--theme-primary)]/10 hover:bg-[var(--theme-primary)]/20 active:bg-[var(--theme-primary)]/30 rounded-xl transition-colors"
+                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[var(--theme-primary)] bg-[var(--theme-primary)]/10 hover:bg-[var(--theme-primary)]/20 active:bg-[var(--theme-primary)]/30 rounded-xl transition-all hover:scale-[1.02]"
                 >
                   <Plus size={14} /> Nova
                 </button>
               )}
-              <button onClick={() => setIsOpen(false)} className="p-2 text-neutral-500 hover:text-neutral-300 rounded-xl transition-colors">
+              <button onClick={() => setIsOpen(false)} className="p-2 text-neutral-500 hover:text-neutral-300 rounded-xl transition-all hover:scale-[1.05]">
                 <X size={18} />
               </button>
             </div>
           </div>
 
+          {/* Filters */}
+          <div className="flex gap-2 px-4 py-3 border-b border-neutral-800/60 overflow-x-auto shrink-0 scrollbar-none">
+            {(['all', 'aviso', 'atualizacao', 'outro'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-full whitespace-nowrap transition-all hover:scale-[1.02] ${filter === f ? 'bg-[var(--theme-primary)] text-neutral-900' : 'bg-neutral-800 text-neutral-400 hover:text-white'}`}
+              >
+                {f === 'all' ? 'Todas' : CATEGORY_META[f].label}
+              </button>
+            ))}
+          </div>
+
           {/* List */}
           <div className="overflow-y-auto flex-1 divide-y divide-neutral-800/60">
-            {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-14 px-6 text-center">
+            {displayNotifications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-14 px-6 text-center animate-in fade-in duration-300">
                 <Bell size={32} className="text-neutral-700 mb-3" />
-                <p className="text-neutral-500 text-sm">Nenhuma notificação ainda.</p>
+                <p className="text-neutral-500 text-sm">Nenhuma notificação encontrada.</p>
                 {isDev && (
                   <button onClick={() => { setIsOpen(false); setIsComposing(true); }} className="mt-3 text-xs text-[var(--theme-primary)] hover:underline">
                     Criar a primeira →
@@ -182,7 +199,7 @@ export function NotificationBell({ isDev, onNavigateToTab }: { isDev: boolean; o
                 )}
               </div>
             ) : (
-              notifications.map(n => (
+              displayNotifications.map(n => (
                 <NotificationCard
                   key={n.id}
                   notification={n}
@@ -238,20 +255,25 @@ function NotificationCard({ notification: n, isDev, onNavigateToTab, onEdit }: {
           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border shrink-0 ${meta.bg} ${meta.color}`}>
             {meta.icon}{categoryLabel}
           </span>
+          {n.pinned && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border shrink-0 bg-rose-500/10 text-rose-400 border-rose-500/30">
+              <Pin size={12} /> Fixado
+            </span>
+          )}
           {dateStr && <span className="text-[11px] text-neutral-600 shrink-0">{dateStr}</span>}
         </div>
         {isDev && (
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={onEdit}
-              className="p-2 text-neutral-600 hover:text-[var(--theme-primary)] hover:bg-[var(--theme-primary)]/10 rounded-lg transition-colors"
+              className="p-2 text-neutral-600 hover:text-[var(--theme-primary)] hover:bg-[var(--theme-primary)]/10 rounded-lg transition-all hover:scale-[1.05]"
               title="Editar"
             >
               <Pencil size={14} />
             </button>
             <button
               onClick={handleDelete}
-              className="p-2 text-neutral-600 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+              className="p-2 text-neutral-600 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all hover:scale-[1.05]"
               title="Remover"
             >
               <Trash2 size={14} />
@@ -268,19 +290,19 @@ function NotificationCard({ notification: n, isDev, onNavigateToTab, onEdit }: {
         <>
           <button
             onClick={() => setExpanded(e => !e)}
-            className="inline-flex items-center gap-1.5 mt-2.5 text-sm sm:text-xs font-medium text-[var(--theme-primary)] bg-[var(--theme-primary)]/10 sm:bg-transparent hover:bg-[var(--theme-primary)]/20 active:bg-[var(--theme-primary)]/30 sm:hover:underline transition-colors py-2.5 sm:py-1 px-3 sm:px-0 rounded-xl sm:rounded-none"
+            className="inline-flex items-center gap-1.5 mt-2.5 text-sm sm:text-xs font-medium text-[var(--theme-primary)] bg-[var(--theme-primary)]/10 sm:bg-transparent hover:bg-[var(--theme-primary)]/20 active:bg-[var(--theme-primary)]/30 sm:hover:underline transition-all hover:scale-[1.02] py-2.5 sm:py-1 px-3 sm:px-0 rounded-xl sm:rounded-none"
           >
             <ChevronRight size={16} className={`sm:w-[13px] sm:h-[13px] transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} />
             {expanded ? 'Recolher' : 'Ver detalhes'}
           </button>
 
           {expanded && (
-            <div className="mt-2 space-y-2.5 text-sm text-neutral-300 border-l-2 border-neutral-700 pl-3">
+            <div className="mt-2 space-y-2.5 text-sm text-neutral-300 border-l-2 border-neutral-700 pl-3 animate-in fade-in slide-in-from-left-2 duration-300">
               {n.blocks.map((block, i) => {
                 if (block.type === 'text') return (
-                  <p key={i} className={`break-words ${block.bold ? 'font-bold text-white' : 'text-neutral-300'}`}>
-                    {renderInlineBold(block.text)}
-                  </p>
+                  <div key={i} className={`prose prose-invert prose-sm break-words max-w-none ${block.bold ? 'font-bold text-white' : 'text-neutral-300'} [&_a]:text-[var(--theme-primary)] [&_a]:underline [&_p]:m-0`}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.text}</ReactMarkdown>
+                  </div>
                 );
                 if (block.type === 'list') return (
                   <ul key={i} className="space-y-1 list-disc list-inside text-neutral-300">
@@ -289,7 +311,7 @@ function NotificationCard({ notification: n, isDev, onNavigateToTab, onEdit }: {
                 );
                 if (block.type === 'tab-link') return (
                   <button key={i} onClick={() => onNavigateToTab(block.tabKey)}
-                    className="flex items-center gap-1.5 text-[var(--theme-primary)] hover:underline font-medium py-0.5 break-words text-left">
+                    className="flex items-center gap-1.5 text-[var(--theme-primary)] hover:underline font-medium py-0.5 break-words text-left transition-all hover:translate-x-1">
                     <ExternalLink size={13} className="shrink-0" />
                     <span className="break-words">{block.label || TAB_OPTIONS.find(t => t.key === block.tabKey)?.label || block.tabKey}</span>
                   </button>
@@ -313,6 +335,7 @@ function NotificationComposer({ onClose, editing }: { onClose: () => void; editi
   const [category, setCategory] = useState<'aviso' | 'atualizacao' | 'outro'>(editing?.category || 'atualizacao');
   const [customCategory, setCustomCategory] = useState(editing?.customCategory || '');
   const [title, setTitle] = useState(editing?.title || '');
+  const [pinned, setPinned] = useState(editing?.pinned || false);
   const [blocks, setBlocks] = useState<NotificationBlock[]>(editing?.blocks || []);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -344,6 +367,7 @@ function NotificationComposer({ onClose, editing }: { onClose: () => void; editi
         category,
         customCategory: category === 'outro' ? customCategory.trim() : '',
         title: title.trim(),
+        pinned,
         blocks,
       };
       if (isEditing) {
@@ -365,8 +389,8 @@ function NotificationComposer({ onClose, editing }: { onClose: () => void; editi
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full sm:max-w-lg max-h-[95svh] sm:max-h-[90vh] flex flex-col bg-neutral-900 border border-neutral-700/80 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose} />
+      <div className="relative z-10 w-full sm:max-w-lg max-h-[95svh] sm:max-h-[90vh] flex flex-col bg-neutral-900 border border-neutral-700/80 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 zoom-in-95 duration-200">
 
         {/* Drag handle */}
         <div className="sm:hidden flex justify-center pt-3 pb-1 shrink-0">
@@ -379,7 +403,7 @@ function NotificationComposer({ onClose, editing }: { onClose: () => void; editi
             {isEditing ? <Pencil size={15} className="text-[var(--theme-primary)]" /> : <Bell size={15} className="text-[var(--theme-primary)]" />}
             <span className="font-bold text-white text-sm">{isEditing ? 'Editar Notificação' : 'Nova Notificação'}</span>
           </div>
-          <button onClick={onClose} className="p-2.5 text-neutral-500 hover:text-white rounded-xl transition-colors">
+          <button onClick={onClose} className="p-2.5 text-neutral-500 hover:text-white rounded-xl transition-all hover:scale-[1.1]">
             <X size={20} />
           </button>
         </div>
@@ -387,31 +411,47 @@ function NotificationComposer({ onClose, editing }: { onClose: () => void; editi
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 px-4 py-4 space-y-5">
 
-          {/* Category */}
-          <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-400 mb-2.5">Categoria</label>
-            <div className="flex gap-2 flex-wrap">
-              {(['aviso', 'atualizacao', 'outro'] as const).map(cat => {
-                const m = CATEGORY_META[cat];
-                const isSelected = category === cat;
-                return (
-                  <button key={cat} type="button" onClick={() => setCategory(cat)}
-                    className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
-                      isSelected ? `${m.bg} ${m.color} shadow` : 'bg-neutral-800 text-neutral-400 border-neutral-700 hover:border-neutral-500 active:bg-neutral-700'
-                    }`}
-                  >
-                    {m.icon}{m.label}
-                  </button>
-                );
-              })}
+          {/* Category & Pinned */}
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-400 mb-2.5">Categoria</label>
+              <div className="flex gap-2 flex-wrap">
+                {(['aviso', 'atualizacao', 'outro'] as const).map(cat => {
+                  const m = CATEGORY_META[cat];
+                  const isSelected = category === cat;
+                  return (
+                    <button key={cat} type="button" onClick={() => setCategory(cat)}
+                      className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all hover:scale-[1.02] ${
+                        isSelected ? `${m.bg} ${m.color} shadow` : 'bg-neutral-800 text-neutral-400 border-neutral-700 hover:border-neutral-500 active:bg-neutral-700'
+                      }`}
+                    >
+                      {m.icon}{m.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {category === 'outro' && (
+                <input
+                  type="text" placeholder="Nome da categoria" value={customCategory}
+                  onChange={e => setCustomCategory(e.target.value)} maxLength={30}
+                  className="mt-2.5 w-full bg-neutral-800 text-white border border-neutral-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--theme-primary)] transition-colors"
+                />
+              )}
             </div>
-            {category === 'outro' && (
-              <input
-                type="text" placeholder="Nome da categoria" value={customCategory}
-                onChange={e => setCustomCategory(e.target.value)} maxLength={30}
-                className="mt-2.5 w-full bg-neutral-800 text-white border border-neutral-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[var(--theme-primary)] transition-colors"
-              />
-            )}
+            
+            <div className="shrink-0 flex items-center justify-between gap-3 bg-neutral-800/40 px-3.5 py-3 rounded-xl border border-neutral-700/50 hover:border-neutral-600 transition-colors">
+              <div className="flex items-center gap-2">
+                <Pin size={16} className={pinned ? 'text-rose-400' : 'text-neutral-500'} />
+                <span className="text-sm font-semibold text-white">Fixar no Topo</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPinned(!pinned)}
+                className={`relative w-11 h-6 rounded-full transition-colors duration-300 ${pinned ? 'bg-rose-500' : 'bg-neutral-600'}`}
+              >
+                <span className={`absolute top-1 bg-white w-4 h-4 rounded-full transition-all duration-300 ${pinned ? 'left-6' : 'left-1'}`} />
+              </button>
+            </div>
           </div>
 
           {/* Title */}
@@ -429,7 +469,7 @@ function NotificationComposer({ onClose, editing }: { onClose: () => void; editi
             <div className="space-y-3">
               <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-400">Conteúdo</label>
               {blocks.map((block, i) => (
-                <div key={i} className="bg-neutral-800/60 border border-neutral-700/60 rounded-xl overflow-hidden">
+                <div key={i} className="bg-neutral-800/60 border border-neutral-700/60 rounded-xl overflow-hidden animate-in fade-in duration-300">
                   {/* Block header */}
                   <div className="flex items-center justify-between px-3 py-2.5 bg-neutral-800 border-b border-neutral-700/60">
                     <div className="flex items-center gap-1.5 text-[11px] font-bold text-neutral-400 uppercase tracking-wider">
@@ -438,18 +478,6 @@ function NotificationComposer({ onClose, editing }: { onClose: () => void; editi
                       {block.type === 'tab-link' && <><LinkIcon size={12} /> Link de Aba</>}
                     </div>
                     <div className="flex items-center gap-1.5">
-                      {block.type === 'text' && (
-                        <button
-                          onClick={() => {
-                            const newText = block.text + (block.text && !block.text.endsWith(' ') ? ' ' : '') + '**negrito**';
-                            updateBlock(i, { text: newText });
-                          }}
-                          title="Adicionar negrito"
-                          className="flex items-center justify-center w-8 h-8 rounded-lg font-black text-sm transition-all border bg-neutral-700 text-neutral-400 border-neutral-600 hover:text-white active:bg-neutral-600"
-                        >
-                          B
-                        </button>
-                      )}
                       <button
                         onClick={() => removeBlock(i)}
                         className="flex items-center justify-center w-8 h-8 rounded-lg text-neutral-600 hover:text-red-400 hover:bg-red-400/10 active:bg-red-400/20 transition-all border border-transparent hover:border-red-400/20"
@@ -465,7 +493,7 @@ function NotificationComposer({ onClose, editing }: { onClose: () => void; editi
                       <textarea
                         value={block.text}
                         onChange={e => updateBlock(i, { text: e.target.value })}
-                        placeholder="Escreva aqui... Use **texto** para negrito."
+                        placeholder="Escreva aqui (suporta Markdown: **negrito**, *itálico*, [link](url))..."
                         rows={3}
                         className={`w-full bg-transparent text-sm focus:outline-none resize-none placeholder:text-neutral-600 ${block.bold ? 'font-bold text-white' : 'text-neutral-200'}`}
                       />
@@ -474,7 +502,7 @@ function NotificationComposer({ onClose, editing }: { onClose: () => void; editi
                     {block.type === 'list' && (
                       <div className="space-y-2.5">
                         {block.items.map((item, j) => (
-                          <div key={j} className="flex items-center gap-2">
+                          <div key={j} className="flex items-center gap-2 animate-in fade-in duration-200">
                             <span className="text-[var(--theme-primary)] text-xs shrink-0">•</span>
                             <input
                               type="text" value={item}
@@ -526,17 +554,17 @@ function NotificationComposer({ onClose, editing }: { onClose: () => void; editi
             </label>
             <div className="grid grid-cols-3 gap-2.5">
               <button onClick={addTextBlock}
-                className="flex flex-col items-center gap-2 px-2 py-4 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700 hover:border-neutral-500 rounded-xl transition-all">
+                className="flex flex-col items-center gap-2 px-2 py-4 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700 hover:border-neutral-500 rounded-xl transition-all hover:-translate-y-1">
                 <Bold size={18} className="text-neutral-400" />
                 <span>Parágrafo</span>
               </button>
               <button onClick={addListBlock}
-                className="flex flex-col items-center gap-2 px-2 py-4 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700 hover:border-neutral-500 rounded-xl transition-all">
+                className="flex flex-col items-center gap-2 px-2 py-4 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700 hover:border-neutral-500 rounded-xl transition-all hover:-translate-y-1">
                 <List size={18} className="text-neutral-400" />
                 <span>Lista</span>
               </button>
               <button onClick={addTabLink}
-                className="flex flex-col items-center gap-2 px-2 py-4 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700 hover:border-neutral-500 rounded-xl transition-all">
+                className="flex flex-col items-center gap-2 px-2 py-4 text-xs font-medium text-neutral-300 bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-600 border border-neutral-700 hover:border-neutral-500 rounded-xl transition-all hover:-translate-y-1">
                 <LinkIcon size={18} className="text-neutral-400" />
                 <span>Link de aba</span>
               </button>
@@ -551,7 +579,7 @@ function NotificationComposer({ onClose, editing }: { onClose: () => void; editi
             Cancelar
           </button>
           <button onClick={handleSave} disabled={isSaving || !title.trim()}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-semibold text-neutral-900 bg-[var(--theme-primary)] hover:opacity-90 active:opacity-80 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+            className="flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-semibold text-neutral-900 bg-[var(--theme-primary)] hover:opacity-90 active:opacity-80 rounded-xl transition-all hover:scale-[1.02] disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed">
             {isSaving ? 'Salvando...' : <><Send size={15} /> {isEditing ? 'Salvar' : 'Publicar'}</>}
           </button>
         </div>

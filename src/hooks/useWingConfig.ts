@@ -122,6 +122,8 @@ export interface AppConfig {
   monthlyRotationOffset?: number;
   weeklyOffsets?: Record<string, number>;
   monthlyOffsets?: Record<string, number>;
+  fridgeOffsets?: Record<string, number>;
+  productsOffsets?: Record<string, number>;
   absentRooms?: string[];
   absentRoomsWeek?: number;
   links?: AppLink[];

@@ -24,36 +24,34 @@ export function useRotation(config: AppConfig, today: Date) {
   const year = today.getFullYear();
   const month = today.getMonth();
 
+  const dy = today.getDate();
+
   const weekKey = getWeekKey(today);
   const monthKey = getMonthKey(today);
   
+  const pivotMo = dy >= 20 ? month + 1 : month;
+  const pivotYr = pivotMo > 11 ? year + 1 : year;
+  const normalizedMo = pivotMo % 12;
+  const pivotMonthKey = `${pivotYr}-${String(normalizedMo + 1).padStart(2, '0')}`;
+  
   const weeklyOffset = getEffectiveOffset(config.weeklyOffsets, weekKey, config.weeklyRotationOffset ?? 0);
-  const monthlyOffset = getEffectiveOffset(config.monthlyOffsets, monthKey, config.monthlyRotationOffset ?? 0);
+  const fridgeOffset = getEffectiveOffset(config.fridgeOffsets, monthKey, config.monthlyRotationOffset ?? 0);
+  const productsOffset = getEffectiveOffset(config.productsOffsets, pivotMonthKey, config.monthlyRotationOffset ?? 0);
   const absentRooms = config.absentRooms ?? [];
   const coletivoWeekends = config.coletivoWeekends ?? [];
 
   /**
-   * Calcula o índice efetivo no array ROOMS, pulando quartos ausentes.
-   * Retorna o quarto e o índice real.
+   * Calcula o índice efetivo no array de quartos disponíveis, pulando quartos ausentes
+   * sem duplicar o primeiro da fila, ajustando o tamanho do ciclo perfeitamente.
    */
   const getEffectiveRoom = (rawIndex: number): { room: string; effectiveIndex: number } => {
-    let count = 0;
-    let idx = ((rawIndex % ROOMS.length) + ROOMS.length) % ROOMS.length;
-    const visited = new Set<number>();
-
-    while (visited.size < ROOMS.length) {
-      if (!absentRooms.includes(ROOMS[idx])) {
-        if (count === 0) {
-          return { room: ROOMS[idx], effectiveIndex: idx };
-        }
-        count--;
-      }
-      visited.add(idx);
-      idx = (idx + 1) % ROOMS.length;
-    }
-
-    // Fallback: todos ausentes
-    return { room: ROOMS[0], effectiveIndex: 0 };
+    const availableRooms = ROOMS.filter(r => !absentRooms.includes(r));
+    if (availableRooms.length === 0) return { room: ROOMS[0], effectiveIndex: 0 };
+    
+    // rawIndex é o número total de períodos transcorridos + deslocamento (offset)
+    const trueIndex = ((rawIndex % availableRooms.length) + availableRooms.length) % availableRooms.length;
+    const selectedRoom = availableRooms[trueIndex];
+    return { room: selectedRoom, effectiveIndex: ROOMS.indexOf(selectedRoom) };
   };
 
   /**
@@ -63,18 +61,25 @@ export function useRotation(config: AppConfig, today: Date) {
   const weeklyRotation = useMemo(() => {
     const coletivoCount = coletivoWeekends.length;
     const effectiveWeek = weekNumber - coletivoCount;
-    const rawIndex = ((effectiveWeek + 3 + weeklyOffset) % ROOMS.length + ROOMS.length) % ROOMS.length;
+    const rawIndex = effectiveWeek + 3 + weeklyOffset;
     return getEffectiveRoom(rawIndex);
   }, [weekNumber, weeklyOffset, absentRooms, coletivoWeekends.length]);
 
   /**
-   * Calcula a rotação mensal (geladeira e compras).
+   * Calcula a rotação da limpeza da geladeira.
    */
-  const monthlyRotation = useMemo(() => {
-    const rawIndex = ((year - 2024) * 12 + month + 2 + monthlyOffset) % ROOMS.length;
-    const normalized = ((rawIndex % ROOMS.length) + ROOMS.length) % ROOMS.length;
-    return getEffectiveRoom(normalized);
-  }, [year, month, monthlyOffset, absentRooms]);
+  const fridgeRotation = useMemo(() => {
+    const rawIndex = (year - 2024) * 12 + month + 2 + fridgeOffset;
+    return getEffectiveRoom(rawIndex);
+  }, [year, month, fridgeOffset, absentRooms]);
+
+  /**
+   * Calcula a rotação das compras de produtos.
+   */
+  const productsRotation = useMemo(() => {
+    const rawIndex = (pivotYr - 2024) * 12 + normalizedMo + 2 + productsOffset;
+    return getEffectiveRoom(rawIndex);
+  }, [pivotYr, normalizedMo, productsOffset, absentRooms]);
 
   /**
    * Retorna o quarto responsável por limpeza na semana atual.
@@ -89,12 +94,12 @@ export function useRotation(config: AppConfig, today: Date) {
   /**
    * Retorna o quarto responsável por limpeza da geladeira no mês atual.
    */
-  const fridgeRoom = monthlyRotation.room;
+  const fridgeRoom = fridgeRotation.room;
 
   /**
    * Retorna o quarto responsável por compras no mês atual.
    */
-  const productsRoom = monthlyRotation.room;
+  const productsRoom = productsRotation.room;
 
   /**
    * Verifica se uma data específica é um fim de semana coletivo.
@@ -132,7 +137,8 @@ export function useRotation(config: AppConfig, today: Date) {
     fridgeRoom,
     productsRoom,
     weeklyRotation,
-    monthlyRotation,
+    fridgeRotation,
+    productsRotation,
     isColetivoWeek,
     getRoomForDay,
     weekNumber,

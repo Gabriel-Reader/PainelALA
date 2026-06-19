@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
 import { CalendarDays, ClipboardList, Settings, LogOut, Pencil, Languages, CheckSquare, BookOpen, Link2, Package, Wrench, Loader2, Palette, Users, Check } from 'lucide-react';
 import { signInWithPopup, signInWithRedirect, GoogleAuthProvider, signOut } from 'firebase/auth';
-import { deleteField, doc, updateDoc, getDoc, getDocFromCache, getDocFromServer } from 'firebase/firestore';
+import { deleteField, doc, updateDoc, getDoc, getDocFromCache, getDocFromServer, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { useWingConfig } from './hooks/useWingConfig';
 import { ActivitiesPanel } from './components/ActivitiesPanel';
@@ -9,6 +9,7 @@ import { CalendarSection } from './components/CalendarSection';
 import { ResidentDayModal } from './components/ResidentDayModal';
 import { ErrorBanner } from './components/ErrorBanner';
 import { PromptModal } from './components/PromptModal';
+import { EditActivityModal } from './components/EditActivityModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { ToastContainer, showToast } from './components/Toast';
 import { UsersTab } from './components/UsersTab';
@@ -92,7 +93,6 @@ const THEMES = [
   },
 ];
 
-// ── Lazy-loaded tabs (carregadas apenas quando acessadas) ────────────────────
 function lazyWithRetry<T extends React.ComponentType<any>>(componentImport: () => Promise<{ default: T }>) {
   return lazy(async () => {
     const pageHasAlreadyBeenForceRefreshed = JSON.parse(
@@ -107,7 +107,7 @@ function lazyWithRetry<T extends React.ComponentType<any>>(componentImport: () =
         window.dispatchEvent(new CustomEvent('show-update-prompt', {
           detail: { message: 'Uma nova atualização do sistema foi publicada. Para acessar esta aba, é necessário recarregar a página.' }
         }));
-        return new Promise<{ default: T }>(() => {}); // Fica carregando pendente
+        return new Promise<{ default: T }>(() => {}); 
       }
       throw error;
     }
@@ -120,7 +120,6 @@ const LinksTab = lazyWithRetry(() => import('./components/LinksTab').then(m => (
 const ProductsTab = lazyWithRetry(() => import('./ProductsTab').then(m => ({ default: m.ProductsTab })));
 const MaintenanceTab = lazyWithRetry(() => import('./components/MaintenanceTab').then(m => ({ default: m.MaintenanceTab })));
 
-/** Loading fallback para tabs lazy-loaded */
 function TabLoading() {
   return (
     <div className="flex items-center justify-center py-16">
@@ -130,7 +129,7 @@ function TabLoading() {
 }
 
 type ActiveTab = 'main' | 'rules' | 'general_rules' | 'links' | 'products' | 'maintenance' | 'users';
-type CalendarMode = 'cleaning' | 'maintenance' | 'fridge' | 'products' | 'coletivo';
+type CalendarMode = 'cleaning' | 'maintenance' | 'fridge' | 'products' | 'coletivo' | 'edit';
 
 interface DayTask {
   id: string;
@@ -141,12 +140,10 @@ interface DayTask {
   isManual: boolean;
 }
 
-/** Retorna o número de dias de um mês. */
 function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
-/** Retorna o dia da semana do primeiro dia do mês (0=dom ... 6=sáb). */
 function getFirstDayOfMonth(year: number, month: number): number {
   return new Date(year, month, 1).getDay();
 }
@@ -160,7 +157,6 @@ export default function App() {
       await signInWithPopup(auth, new GoogleAuthProvider());
     } catch (error: any) {
       if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
-        // Fallback para redirect se o popup for bloqueado pelo navegador
         await signInWithRedirect(auth, new GoogleAuthProvider());
       } else {
         console.error("Login error:", error);
@@ -168,8 +164,6 @@ export default function App() {
     }
   };
 
-  // 1. Mostra spinner enquanto o estado do Firebase Auth está inicializando (evita flash da tela de login)
-  // 2. Ou quando a config/profile de rede estão sendo carregadas pela primeira vez (se não houver cache)
   if (authLoading || loading || profileLoading) return (
     <div className="min-h-screen bg-neutral-900 flex items-center justify-center">
       <div className="animate-pulse flex items-center space-x-2 text-sky-500">
@@ -178,7 +172,6 @@ export default function App() {
     </div>
   );
 
-  // Sem usuário autenticado (e Auth já resolveu que não está logado) → tela de login
   if (!user) return (
     <div className="min-h-screen bg-neutral-900 flex items-center justify-center p-4">
       <div className="bg-neutral-800 p-8 rounded-2xl shadow-sm border border-neutral-700 max-w-sm w-full text-center">
@@ -194,7 +187,6 @@ export default function App() {
     </div>
   );
 
-  // Dados ainda não disponíveis na memória (sem cache local e sem resposta do Firestore)
   if (!config || !profile) return (
     <div className="min-h-screen bg-neutral-900 flex items-center justify-center">
       <div className="animate-pulse flex items-center space-x-2 text-sky-500">
@@ -203,8 +195,6 @@ export default function App() {
     </div>
   );
 
-  // Se o usuário ainda não tem nome (onboarding), mostra a tela de boas-vindas
-  // Feito aqui no App (fora do AppContent) para não violar as Regras dos Hooks.
   if (!profile.displayName) {
     return <OnboardingScreen user={user} profile={profile} THEMES={THEMES} />;
   }
@@ -408,13 +398,11 @@ function AppContent({
   const isGabriel = user?.email === 'gabrielpinheiro632@gmail.com';
   const realRole = isGabriel ? 'dev' : profile.role;
 
-  // Todos os hooks devem ser declarados incondicionalmente (Regras dos Hooks)
   const [activeThemeKey, setActiveThemeKey] = useState<string>(
     () => profile.theme || localStorage.getItem('app_theme_key') || 'ocean'
   );
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Temporary migration
   React.useEffect(() => {
     if (config && user && config.monthlyRotationOffset === 4 && !config.monthlyOffsets) {
       updateConfig({
@@ -458,6 +446,7 @@ function AppContent({
   const [mockDateStr, setMockDateStr] = useState('');
   const [residentSelectedDay, setResidentSelectedDay] = useState<{ dayNumber: number; dayTasks: any[] } | null>(null);
   const [isClearMonthModalOpen, setIsClearMonthModalOpen] = useState(false);
+  const [editActivityData, setEditActivityData] = useState<import('./components/EditActivityModal').EditActivityData | null>(null);
   const [promptConfig, setPromptConfig] = useState<{
     isOpen: boolean;
     title: string;
@@ -465,7 +454,6 @@ function AppContent({
     onSave: (val: string) => void;
   } | null>(null);
 
-  // ── Automatic room assignment ──────────────────────────────────────────────
   const getAutomaticRoomsForDate = (year: number, month: number, day: number) => {
     const d = new Date(year, month, day, 12, 0, 0, 0);
     const dayOfWeek = d.getDay();
@@ -478,25 +466,37 @@ function AppContent({
       weekNumber -= past.length;
     }
     const rot = ['101', '102', '103', '104', '105'];
+    const absent = config?.absentRooms || [];
+    const availableRooms = rot.filter(r => !absent.includes(r));
+    const fallbackRoom = availableRooms[0] || rot[0];
+
     const weekKeyStr = `W${year}-${String(weekNumber).padStart(2, '0')}`;
     const monthKeyStr = `${year}-${String(month + 1).padStart(2, '0')}`;
-    const wo = getEffectiveOffset(config?.weeklyOffsets, weekKeyStr, config?.weeklyRotationOffset ?? 0);
-    const mo = getEffectiveOffset(config?.monthlyOffsets, monthKeyStr, config?.monthlyRotationOffset ?? 0);
-    const absent = config?.absentRooms || [];
     
-    // Semanal — pula quartos ausentes
-    let wi = ((weekNumber + 3 + wo) % rot.length + rot.length) % rot.length;
-    for (let t = 0; t < rot.length && absent.includes(rot[wi]); t++) wi = (wi + 1) % rot.length;
-    const weeklyRoom = rot[wi];
+    const pivotMo = day >= 20 ? month + 1 : month;
+    const pivotYr = pivotMo > 11 ? year + 1 : year;
+    const normalizedMo = pivotMo % 12;
+    const pivotMonthKeyStr = `${pivotYr}-${String(normalizedMo + 1).padStart(2, '0')}`;
 
-    // Mensal — pula quartos ausentes
-    let mi = (((year - 2024) * 12 + month + 2 + mo) % rot.length + rot.length) % rot.length;
-    for (let t = 0; t < rot.length && absent.includes(rot[mi]); t++) mi = (mi + 1) % rot.length;
-    const monthlyRoom = rot[mi];
+    const wo = getEffectiveOffset(config?.weeklyOffsets, weekKeyStr, config?.weeklyRotationOffset ?? 0);
+    const fo = getEffectiveOffset(config?.fridgeOffsets, monthKeyStr, config?.monthlyRotationOffset ?? 0);
+    const po = getEffectiveOffset(config?.productsOffsets, pivotMonthKeyStr, config?.monthlyRotationOffset ?? 0);
+    
+    const weeklyRaw = weekNumber + 3 + wo;
+    const weeklyIdx = ((weeklyRaw % availableRooms.length) + availableRooms.length) % availableRooms.length;
+    const weeklyRoom = availableRooms.length > 0 ? availableRooms[weeklyIdx] : fallbackRoom;
+
+    const fridgeRaw = (year - 2024) * 12 + month + 2 + fo;
+    const fridgeIdx = ((fridgeRaw % availableRooms.length) + availableRooms.length) % availableRooms.length;
+    const fridgeRoom = availableRooms.length > 0 ? availableRooms[fridgeIdx] : fallbackRoom;
+
+    const productsRaw = (pivotYr - 2024) * 12 + normalizedMo + 2 + po;
+    const productsIdx = ((productsRaw % availableRooms.length) + availableRooms.length) % availableRooms.length;
+    const productsRoom = availableRooms.length > 0 ? availableRooms[productsIdx] : fallbackRoom;
 
     return {
       cleaning: weeklyRoom, maintenance: weeklyRoom,
-      fridge: monthlyRoom, products: monthlyRoom,
+      fridge: fridgeRoom, products: productsRoom,
       isCleaningDay: dayOfWeek === 5,
       isMaintenanceDay: dayOfWeek === 3,
       isFridgeDay: dayOfWeek === 4 && day >= 15 && day <= 21,
@@ -506,7 +506,6 @@ function AppContent({
 
   const today = mockDateStr ? new Date(`${mockDateStr}T12:00:00Z`) : new Date();
 
-  // ── Automatic Snapshot ─────────────────────────────────────────────────────
   const [savingSnapshot, setSavingSnapshot] = useState(false);
   useEffect(() => {
     if (!config || !user || !saveWeeklySnapshot || savingSnapshot) return;
@@ -515,7 +514,6 @@ function AppContent({
     const year = today.getFullYear();
     const weekKey = `W${year}-${lastWeekNum}`;
     
-    // Fast path: se já está no localStorage e não estamos em modo teste/dev, ignora.
     const isMock = !!mockDateStr;
     if (!isMock && localStorage.getItem('saved_snapshot_week') === weekKey) return;
 
@@ -525,8 +523,6 @@ function AppContent({
       try {
         const docRef = doc(db, 'history', weekKey);
         
-        // Consulta o servidor diretamente para ver se a escala está salva na nuvem.
-        // Timeout de 2.5s para evitar travamento em redes instáveis ou Service Worker antigo.
         const docSnapPromise = getDocFromServer(docRef);
         const timeoutPromise = new Promise<null>((_, reject) => 
           setTimeout(() => reject(new Error('TIMEOUT')), 2500)
@@ -603,71 +599,61 @@ function AppContent({
     checkAndSave();
   }, [config, user, today.getTime(), mockDateStr]);
 
-  // ── Offset helpers ─────────────────────────────────────────────────────────
-  const calcWeeklyOffsetUpdates = (targetRoom: string) => {
-    const rot = ['101','102','103','104','105'];
+  const getOffsetForTargetRoom = (baseRawIndex: number, targetRoom: string, absentRooms: string[]) => {
+    const rot = ['101', '102', '103', '104', '105'];
+    const availableRooms = rot.filter(r => !absentRooms.includes(r));
+    if (availableRooms.length === 0 || !availableRooms.includes(targetRoom)) return 0;
+    
+    const targetTrueIndex = availableRooms.indexOf(targetRoom);
+    let newOffset = 0;
+    while (((baseRawIndex + newOffset) % availableRooms.length + availableRooms.length) % availableRooms.length !== targetTrueIndex) {
+      newOffset++;
+    }
+    return newOffset;
+  };
+
+  const calcWeeklyOffsetUpdates = (targetRoom: string, pivotDate: Date = today) => {
     const absent = config?.absentRooms || [];
-    let adj = getWeekNumber(today);
+    let adj = getWeekNumber(pivotDate);
     if (config?.coletivoWeekends?.length) {
       adj -= config.coletivoWeekends.filter(ds => {
         const [y,m,d] = ds.split('-');
         return getWeekNumber(new Date(+y,+m-1,+d,12,0,0,0)) <= adj;
       }).length;
     }
-    const bi = (adj + 3) % rot.length;
-    let newOffset = 0;
-    for (let off = 0; off < rot.length; off++) {
-       let wi = ((bi + off) % rot.length + rot.length) % rot.length;
-       for (let t = 0; t < rot.length && absent.includes(rot[wi]); t++) wi = (wi + 1) % rot.length;
-       if (rot[wi] === targetRoom) { newOffset = off; break; }
-    }
-    const weekKey = `W${today.getFullYear()}-${String(getWeekNumber(today)).padStart(2, '0')}`;
+    const baseRawIndex = adj + 3;
+    const newOffset = getOffsetForTargetRoom(baseRawIndex, targetRoom, absent);
+    const weekKey = `W${pivotDate.getFullYear()}-${String(adj).padStart(2, '0')}`;
     return { weeklyOffsets: { ...(config?.weeklyOffsets || {}), [weekKey]: newOffset } };
   };
 
-  // Geladeira: o responsável sempre é pelo mês corrente (vira no dia 01)
-  const calcFridgeOffsetUpdates = (targetRoom: string) => {
-    const rot = ['101','102','103','104','105'];
+  const calcFridgeOffsetUpdates = (targetRoom: string, pivotDate: Date = today) => {
     const absent = config?.absentRooms || [];
-    const yr = today.getFullYear();
-    const mo = today.getMonth(); // mês corrente, sem antecipação
-    const bi = ((yr - 2024) * 12 + mo + 2) % rot.length;
-    let newOffset = 0;
-    for (let off = 0; off < rot.length; off++) {
-       let mi = ((bi + off) % rot.length + rot.length) % rot.length;
-       for (let t = 0; t < rot.length && absent.includes(rot[mi]); t++) mi = (mi + 1) % rot.length;
-       if (rot[mi] === targetRoom) { newOffset = off; break; }
-    }
+    const yr = pivotDate.getFullYear();
+    const mo = pivotDate.getMonth(); 
+    const baseRawIndex = (yr - 2024) * 12 + mo + 2;
+    const newOffset = getOffsetForTargetRoom(baseRawIndex, targetRoom, absent);
     const monthKey = `${yr}-${String(mo + 1).padStart(2, '0')}`;
-    return { monthlyOffsets: { ...(config?.monthlyOffsets || {}), [monthKey]: newOffset } };
+    return { fridgeOffsets: { ...(config?.fridgeOffsets || {}), [monthKey]: newOffset } };
   };
 
-  // Compras: a partir do dia 20, já exibe e salva o responsável do próximo mês
-  const calcProductsOffsetUpdates = (targetRoom: string) => {
-    const rot = ['101','102','103','104','105'];
+  const calcProductsOffsetUpdates = (targetRoom: string, pivotDate: Date = today) => {
     const absent = config?.absentRooms || [];
-    const yr = today.getFullYear();
-    const mo = today.getMonth();
-    const dy = today.getDate();
-    // Se já é dia >= 20, registra o offset para o PRÓXIMO mês
+    const yr = pivotDate.getFullYear();
+    const mo = pivotDate.getMonth();
+    const dy = pivotDate.getDate();
     const pivotMo = dy >= 20 ? mo + 1 : mo;
     const pivotYr = pivotMo > 11 ? yr + 1 : yr;
     const normalizedMo = pivotMo % 12;
-    const bi = ((pivotYr - 2024) * 12 + normalizedMo + 2) % rot.length;
-    let newOffset = 0;
-    for (let off = 0; off < rot.length; off++) {
-       let mi = ((bi + off) % rot.length + rot.length) % rot.length;
-       for (let t = 0; t < rot.length && absent.includes(rot[mi]); t++) mi = (mi + 1) % rot.length;
-       if (rot[mi] === targetRoom) { newOffset = off; break; }
-    }
+    
+    const baseRawIndex = (pivotYr - 2024) * 12 + normalizedMo + 2;
+    const newOffset = getOffsetForTargetRoom(baseRawIndex, targetRoom, absent);
     const monthKey = `${pivotYr}-${String(normalizedMo + 1).padStart(2, '0')}`;
-    return { monthlyOffsets: { ...(config?.monthlyOffsets || {}), [monthKey]: newOffset } };
+    return { productsOffsets: { ...(config?.productsOffsets || {}), [monthKey]: newOffset } };
   };
 
-  /** @deprecated Use calcFridgeOffsetUpdates or calcProductsOffsetUpdates */
   const calcMonthlyOffsetUpdates = calcFridgeOffsetUpdates;
 
-  // ── Absent rooms toggle (só rep) ────────────────────────────────────────
   const handleToggleAbsent = (room: string) => {
     const current = config?.absentRooms || [];
     const roomsToRotate = ['101', '102', '103', '104', '105'];
@@ -711,21 +697,18 @@ function AppContent({
 
   const curRooms = getAutomaticRoomsForDate(today.getFullYear(), today.getMonth(), today.getDate());
 
-  // Geladeira: vira no dia 01 de cada mês — usa o mês corrente sem ajuste
   const fridgePivotYear  = today.getFullYear();
-  const fridgePivotMonth = today.getMonth();       // mes corrente (começa a valer desde o dia 1)
-  const fridgePivotRooms = getAutomaticRoomsForDate(fridgePivotYear, fridgePivotMonth, 15); // 15 garante Thursday 15-21
+  const fridgePivotMonth = today.getMonth();       
+  const fridgePivotRooms = getAutomaticRoomsForDate(fridgePivotYear, fridgePivotMonth, 15); 
 
-  // Compras: vira no dia 20 — a partir do dia 20 já mostra o responsável do MÊS SEGUINTE
   const todayDay = today.getDate();
   const productsPivotDate = todayDay >= 20
-    ? new Date(today.getFullYear(), today.getMonth() + 1, 1)   // próximo mês
-    : new Date(today.getFullYear(), today.getMonth(), 1);      // mês corrente
+    ? new Date(today.getFullYear(), today.getMonth() + 1, 1)   
+    : new Date(today.getFullYear(), today.getMonth(), 1);      
   const productsPivotRooms = getAutomaticRoomsForDate(
     productsPivotDate.getFullYear(), productsPivotDate.getMonth(), 1
   );
 
-  // Helper: só usa o valor do config se for string válida
   const cfgStr = (v: any): string | undefined => (typeof v === 'string' && v ? v : undefined);
 
   const currentCleaningResponsible       = cfgStr(config?.cleaningResponsible)    || curRooms.cleaning;
@@ -743,17 +726,7 @@ function AppContent({
   const isRep = activeView === 'representative' || activeView === 'dev';
   const isDev = activeView === 'dev';
   
-  // Real roles (used to restrict who can see the Settings View Mode selector)
   const canChangeView = realRole === 'dev' || realRole === 'representative';
-
-  const handleRoleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    try {
-      await updateDoc(doc(db, 'users', user.uid), { role: e.target.value });
-    } catch (err) {
-      console.error('Erro ao mudar cargo', err);
-      showToast('Erro ao alterar cargo. Verifique sua conexão e permissões.', 'error');
-    }
-  };
 
   const handlePrevMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
   const handleNextMonth = () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
@@ -761,18 +734,15 @@ function AppContent({
   const daysInMonth = getDaysInMonth(viewDate.getFullYear(), viewDate.getMonth());
   const firstDay = getFirstDayOfMonth(viewDate.getFullYear(), viewDate.getMonth());
 
-  // ── Day tasks resolver (memoizado) ──────────────────────────────────────────
   const allDaysTasks = useMemo(() => {
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
-    const mp = `${year}-${String(month + 1).padStart(2, '0')}-`;
     const result = new Map<number, ReturnType<typeof computeDayTasks>>();
 
     for (let day = 1; day <= daysInMonth; day++) {
       result.set(day, computeDayTasks(year, month, day));
     }
     return result;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     viewDate.getFullYear(), viewDate.getMonth(), daysInMonth,
     config?.cleaningDay, config?.maintenanceDay, config?.fridgeCleaningDay, config?.buyingProductsDay,
@@ -808,7 +778,6 @@ function AppContent({
     const isManualProducts = config?.buyingProductsDay === dKey;
 
     const tasks: DayTask[] = [];
-    // Garante que o responsável é string (evita objeto deleteField() em caso de cache desatualizado)
     const safeStr = (v: any): string | undefined => (typeof v === 'string' ? v : undefined);
     const cleanResp   = safeStr(config?.cleaningResponsible);
     const maintResp   = safeStr(config?.maintenanceResponsible);
@@ -824,34 +793,54 @@ function AppContent({
   }
 
   const getFinalDaysAndTasks = useCallback((year: number, month: number, dayNum: number) => {
-    // Usa o mapa memoizado se for o mês atual, senão calcula sob demanda
     if (year === viewDate.getFullYear() && month === viewDate.getMonth()) {
       return allDaysTasks.get(dayNum) ?? computeDayTasks(year, month, dayNum);
     }
     return computeDayTasks(year, month, dayNum);
   }, [viewDate.getFullYear(), viewDate.getMonth(), allDaysTasks]);
 
-  // ── Day click ──────────────────────────────────────────────────────────────
   const handleDayClick = (day: number) => {
     const dKey = `${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     const { isCln, isMnt, isFrg, isPrd, auto, dayTasks } = getFinalDaysAndTasks(viewDate.getFullYear(), viewDate.getMonth(), day);
     if (!isRep) { setResidentSelectedDay({ dayNumber: day, dayTasks }); return; }
 
     const syncHistory = async (type: 'fridge'|'products', newDate: string) => {
-      // Find the correct week snapshot to update
       const targetDate = new Date(newDate + "T12:00:00Z");
-      const weekNum = getWeekNumber(targetDate);
-      const weekKey = `W${targetDate.getFullYear()}-${weekNum}`;
+      const monthKey = `${targetDate.getFullYear()}-${String(targetDate.getMonth()+1).padStart(2, '0')}`;
       
       try {
-        const historyRef = doc(db, 'history', weekKey);
-        const update: any = {};
-        if (type === 'fridge') update.fridgeExactDate = newDate;
-        if (type === 'products') update.productsExactDate = newDate;
-        await updateDoc(historyRef, update);
-      } catch (e) {
-        // History might not exist yet for this week, which is fine
-      }
+        const q = query(collection(db, 'history'), where('monthKey', '==', monthKey));
+        const snap = await getDocs(q);
+        const batch = writeBatch(db);
+        
+        let hasDocs = false;
+        snap.forEach(d => {
+          hasDocs = true;
+          const update: any = {};
+          if (type === 'fridge') {
+            update.fridgeExactDate = newDate;
+            update['config.fridgeCleaningDay'] = newDate;
+          }
+          if (type === 'products') {
+            update.productsExactDate = newDate;
+            update['config.buyingProductsDay'] = newDate;
+          }
+          batch.update(d.ref, update);
+        });
+        
+        if (hasDocs) {
+          await batch.commit();
+        } else {
+          // Fallback if no history docs for this month yet
+          const weekNum = getWeekNumber(targetDate);
+          const weekKey = `W${targetDate.getFullYear()}-${weekNum}`;
+          const historyRef = doc(db, 'history', weekKey);
+          const update: any = {};
+          if (type === 'fridge') update.fridgeExactDate = newDate;
+          if (type === 'products') update.productsExactDate = newDate;
+          await updateDoc(historyRef, update);
+        }
+      } catch (e) {}
     };
 
     const cycle = (isFinal: boolean, curDay: string|undefined, curResp: string|undefined, autoRoom: string|undefined,
@@ -862,11 +851,9 @@ function AppContent({
       let upd: any = {};
       
       if (isFinal) {
-        // Se clicar em um dia que já tem a tarefa, removemos a data manual (volta para o automático original do sistema)
         upd = { [dayF]: deleteField() };
         if (isWE) newCols = newCols.filter(d => d !== dKey);
       } else {
-        // Se clicar em um dia novo, apenas movemos a data da tarefa para este dia, mantendo o morador atual
         upd = { [dayF]: dKey };
         if (isWE) newCols = newCols.filter(d => d !== dKey);
         if (dayF === 'fridgeCleaningDay') syncHistory('fridge', dKey);
@@ -877,10 +864,17 @@ function AppContent({
       updateConfig(upd);
     };
 
-    if (calendarMode === 'cleaning') {
+    if (calendarMode === 'edit') {
+      const editableTasks = dayTasks.filter((t: any) => t.id !== 'coletivo');
+      if (editableTasks.length > 0) {
+        setEditActivityData({ day, dKey, tasks: editableTasks });
+      } else {
+        showToast(lang === 'en' ? "No activity to edit on this day." : "Nenhuma atividade para editar neste dia.", "info");
+      }
+    }
+    else if (calendarMode === 'cleaning') {
       const dw = new Date(viewDate.getFullYear(), viewDate.getMonth(), day).getDay();
       if (![4, 5, 6, 0, 1].includes(dw)) { showToast("A Limpeza só pode ser agendada entre Quinta e Segunda-feira.", 'error'); return; }
-      // Validação de conflito: não permite limpeza manual em fim de semana coletivo
       if ((dw === 0 || dw === 6) && config.coletivoWeekends?.includes(dKey)) {
         showToast("Este fim de semana já está marcado como Coletivo. Remova o Coletivo primeiro.", 'error');
         return;
@@ -897,7 +891,6 @@ function AppContent({
     else if (calendarMode === 'coletivo') {
       const dw = new Date(viewDate.getFullYear(), viewDate.getMonth(), day).getDay();
       if (dw === 0 || dw === 6) {
-        // Validação de conflito: não permite coletivo em dia com escala manual de limpeza
         const hasManualCleaning = config.cleaningDay === dKey;
         if (hasManualCleaning) {
           showToast("Este dia já tem Limpeza manual agendada. Remova a escala manual antes de marcar como Coletivo.", 'error');
@@ -909,10 +902,42 @@ function AppContent({
     }
   };
 
-  // ── Clear month ────────────────────────────────────────────────────────────
   const handleClearMonthClick = () => {
     if (!isRep) return;
     setIsClearMonthModalOpen(true);
+  };
+
+  const handleSaveOnlyThisDay = (taskId: string, newRoom: string) => {
+    if (!editActivityData) return;
+    updateConfig({ schedule: { ...(config.schedule || {}), [editActivityData.dKey]: newRoom } });
+    showToast(lang === 'en' ? "Activity updated for this day!" : "Atividade atualizada para este dia!", "success");
+    setEditActivityData(null);
+  };
+
+  const handleSaveFromHereOn = (taskId: string, newRoom: string) => {
+    if (!editActivityData) return;
+    let update: any = {};
+    const pivotDate = new Date(`${editActivityData.dKey}T12:00:00Z`);
+
+    if (taskId === 'clean') {
+      update = { cleaningResponsible: deleteField() as any, ...calcWeeklyOffsetUpdates(newRoom, pivotDate) };
+    } else if (taskId === 'maint') {
+      update = { maintenanceResponsible: deleteField() as any, ...calcWeeklyOffsetUpdates(newRoom, pivotDate) };
+    } else if (taskId === 'fridge') {
+      update = { fridgeCleaningResponsible: deleteField() as any, ...calcFridgeOffsetUpdates(newRoom, pivotDate) };
+    } else if (taskId === 'prod') {
+      update = { buyingProductsResponsible: deleteField() as any, ...calcProductsOffsetUpdates(newRoom, pivotDate) };
+    }
+    
+    if (config.schedule && config.schedule[editActivityData.dKey]) {
+      const newSch = { ...config.schedule };
+      delete newSch[editActivityData.dKey];
+      update.schedule = newSch;
+    }
+    
+    updateConfig(update);
+    showToast(lang === 'en' ? "Rotation updated from here on!" : "Rotação atualizada a partir daqui!", "success");
+    setEditActivityData(null);
   };
 
   const confirmClearMonth = () => {
@@ -923,14 +948,10 @@ function AppContent({
 
     const newSch = { ...config.schedule };
     Object.keys(newSch).forEach(k => {
-      // Remove chaves no formato ISO do mês atual (YYYY-MM-DD)
       if (k.startsWith(mp)) {
         delete newSch[k];
         return;
       }
-      // Remove chaves numéricas (formato legado "1", "15", etc.) APENAS se
-      // correspondem a dias válidos do mês atual (1..daysInMonth).
-      // Isso evita apagar acidentalmente dados de outros meses.
       if (/^\d{1,2}$/.test(k)) {
         const dayNum = parseInt(k, 10);
         if (dayNum >= 1 && dayNum <= daysInMonthCurrent) {
@@ -990,61 +1011,19 @@ function AppContent({
           --theme-card-border: ${activeTheme.cardBorder};
           --theme-accent-light: ${activeTheme.accentLight};
         }
-
-        /* Sobrescritas globais e dinâmicas de contêineres padrões */
-        .min-h-screen {
-          background-color: var(--theme-bg) !important;
-        }
-        .bg-neutral-800, .bg-neutral-800\\/50 {
-          background-color: var(--theme-card-bg) !important;
-        }
-        .border-neutral-700, .border-neutral-700\\/50 {
-          border-color: var(--theme-card-border) !important;
-        }
-        .bg-neutral-900, .bg-neutral-900\\/50, .bg-neutral-900\\/95 {
-          background-color: var(--theme-bg) !important;
-        }
-
-        /* Inputs e Foco */
-        .focus-within\\:border-sky-500\\/50:focus-within {
-          border-color: var(--theme-primary) !important;
-        }
-
-        /* Botões Padrões de Ação */
-        .bg-sky-600 {
-          background-color: var(--theme-primary) !important;
-        }
-        .hover\\:bg-sky-700:hover, .hover\\:bg-sky-500:hover {
-          background-color: var(--theme-primary-hover) !important;
-        }
-        
-        /* Fundos de Alerta e Painéis Informativos */
-        .bg-sky-900\\/20, .bg-sky-950\\/40, .bg-sky-900\\/40 {
-          background-color: var(--theme-accent-light) !important;
-          border-color: rgba(56, 189, 248, 0.1) !important;
-        }
-        .border-sky-800\\/50, .border-sky-700\\/50 {
-          border-color: var(--theme-card-border) !important;
-        }
-        
-        /* Textos Destacáveis */
-        .text-sky-400, .text-sky-500, .text-sky-300 {
-          color: var(--theme-primary) !important;
-        }
-        .text-sky-200, .text-sky-200\\/80, .text-sky-200\\/95 {
-          color: var(--theme-primary) !important;
-          opacity: 0.9;
-        }
-        
-        /* Elementos selecionados no calendário/marcações */
-        .bg-sky-600\\/80 {
-          background-color: var(--theme-primary) !important;
-          opacity: 0.9;
-        }
-        
-        .hover\\:text-sky-400:hover {
-          color: var(--theme-primary) !important;
-        }
+        .min-h-screen { background-color: var(--theme-bg) !important; }
+        .bg-neutral-800, .bg-neutral-800\\/50 { background-color: var(--theme-card-bg) !important; }
+        .border-neutral-700, .border-neutral-700\\/50 { border-color: var(--theme-card-border) !important; }
+        .bg-neutral-900, .bg-neutral-900\\/50, .bg-neutral-900\\/95 { background-color: var(--theme-bg) !important; }
+        .focus-within\\:border-sky-500\\/50:focus-within { border-color: var(--theme-primary) !important; }
+        .bg-sky-600 { background-color: var(--theme-primary) !important; }
+        .hover\\:bg-sky-700:hover, .hover\\:bg-sky-500:hover { background-color: var(--theme-primary-hover) !important; }
+        .bg-sky-900\\/20, .bg-sky-950\\/40, .bg-sky-900\\/40 { background-color: var(--theme-accent-light) !important; border-color: rgba(56, 189, 248, 0.1) !important; }
+        .border-sky-800\\/50, .border-sky-700\\/50 { border-color: var(--theme-card-border) !important; }
+        .text-sky-400, .text-sky-500, .text-sky-300 { color: var(--theme-primary) !important; }
+        .text-sky-200, .text-sky-200\\/80, .text-sky-200\\/95 { color: var(--theme-primary) !important; opacity: 0.9; }
+        .bg-sky-600\\/80 { background-color: var(--theme-primary) !important; opacity: 0.9; }
+        .hover\\:text-sky-400:hover { color: var(--theme-primary) !important; }
       `}</style>
       <ToastContainer />
       <header className="bg-[var(--theme-header-bg)] text-white shadow-lg border-b border-[var(--theme-header-border)] transition-colors duration-300">
@@ -1065,17 +1044,9 @@ function AppContent({
             </p>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0 relative">
-
-            <NotificationBell
-              isDev={isRep}
-              onNavigateToTab={(tab) => handleSetActiveTab(tab as any)}
-            />
+            <NotificationBell isDev={isRep} onNavigateToTab={(tab) => handleSetActiveTab(tab as any)} />
             <div className="relative h-8 sm:h-9">
-              <button
-                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                className="flex items-center gap-2 h-full bg-black/10 hover:bg-black/20 text-white border border-white/5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors text-sm font-medium"
-                title={t.settings}
-              >
+              <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className="flex items-center gap-2 h-full bg-black/10 hover:bg-black/20 text-white border border-white/5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors text-sm font-medium" title={t.settings}>
                 <Settings size={18} className="text-[var(--theme-primary)]" />
               </button>
             </div>
@@ -1091,7 +1062,6 @@ function AppContent({
                 <LogOut size={18} />
               </button>
             </div>
-
             {isSettingsOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsSettingsOpen(false)} />
@@ -1100,9 +1070,7 @@ function AppContent({
                     <Settings size={14} className="text-neutral-400" />
                     <span className="text-xs font-bold text-neutral-300 uppercase tracking-wider">{t.settings}</span>
                   </div>
-                  
                   <div className="p-3 space-y-4 max-h-[80vh] overflow-y-auto">
-                      {/* Language */}
                       <div>
                         <label className="text-[10px] uppercase font-bold tracking-wider text-sky-400 mb-2 block">{t.language}</label>
                         <div className="flex gap-2">
@@ -1110,30 +1078,22 @@ function AppContent({
                           <button onClick={() => setLang('en')} className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors ${lang === 'en' ? 'bg-[var(--theme-primary)] text-white border-transparent font-bold' : 'bg-white/5 text-neutral-400 border-white/10 hover:bg-white/10'}`}>EN</button>
                         </div>
                       </div>
-
-                      {/* View Mode */}
                       {canChangeView && (
                         <div>
                           <label className="text-[10px] uppercase font-bold tracking-wider text-sky-400 mb-2 block">{t.viewMode}</label>
-                          <select value={activeView} onChange={(e) => handleSetActiveView(e.target.value)}
-                            className="w-full bg-black/20 text-white border border-white/10 rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none focus:border-sky-500 transition-colors appearance-none cursor-pointer">
+                          <select value={activeView} onChange={(e) => handleSetActiveView(e.target.value)} className="w-full bg-black/20 text-white border border-white/10 rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none focus:border-sky-500 transition-colors appearance-none cursor-pointer">
                             <option value="resident" className="text-black">{t.visionResident}</option>
                             <option value="representative" className="text-black">{t.visionRep}</option>
                             {realRole === 'dev' && <option value="dev" className="text-black">{t.visionDev}</option>}
                           </select>
                         </div>
                       )}
-
-                      {/* Mock Date */}
                       {isDev && (
                         <div>
                           <label htmlFor="mockDateSettings" className="text-[10px] uppercase font-bold tracking-wider text-sky-400 mb-2 block">{t.testDay}</label>
-                          <input type="date" id="mockDateSettings" value={mockDateStr} onChange={e => setMockDateStr(e.target.value)}
-                            className="w-full bg-black/20 text-white border border-white/10 rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none focus:border-sky-500 transition-colors [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert" />
+                          <input type="date" id="mockDateSettings" value={mockDateStr} onChange={e => setMockDateStr(e.target.value)} className="w-full bg-black/20 text-white border border-white/10 rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none focus:border-sky-500 transition-colors [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert" />
                         </div>
                       )}
-
-                      {/* Theme */}
                       <div>
                         <label className="text-[10px] uppercase font-bold tracking-wider text-sky-400 mb-2 block">{t.theme}</label>
                         <div className="space-y-1">
@@ -1146,20 +1106,11 @@ function AppContent({
                             else if (tOption.key === 'wine') { themeName = t.themeWineName || themeName; themeDesc = t.themeWineDesc || themeDesc; }
                             else if (tOption.key === 'royal') { themeName = t.themeRoyalName || themeName; themeDesc = t.themeRoyalDesc || themeDesc; }
                             else if (tOption.key === 'carbon') { themeName = t.themeCarbonName || themeName; themeDesc = t.themeCarbonDesc || themeDesc; }
-
                             return (
-                              <button
-                                key={tOption.key}
-                                onClick={() => handleSelectTheme(tOption.key)}
-                                className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg transition-colors hover:bg-white/5 ${
-                                  isOptionActive ? 'bg-white/5 text-[var(--theme-primary)] font-bold' : 'text-neutral-300'
-                                }`}
-                              >
+                              <button key={tOption.key} onClick={() => handleSelectTheme(tOption.key)} className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg transition-colors hover:bg-white/5 ${isOptionActive ? 'bg-white/5 text-[var(--theme-primary)] font-bold' : 'text-neutral-300'}`}>
                                 <div className="flex items-center gap-2.5">
                                   <div className="flex -space-x-1">
-                                    {tOption.colors.map((c, idx) => (
-                                      <span key={idx} className={`w-3.5 h-3.5 rounded-full border border-neutral-900 ${c}`} />
-                                    ))}
+                                    {tOption.colors.map((c, idx) => (<span key={idx} className={`w-3.5 h-3.5 rounded-full border border-neutral-900 ${c}`} />))}
                                   </div>
                                   <div className="text-left">
                                     <p className="font-semibold">{themeName}</p>
@@ -1183,18 +1134,12 @@ function AppContent({
             const isActive = activeTab === tab.key;
             return (
               <div key={tab.key} className="flex items-center shrink-0">
-                <button onClick={() => handleSetActiveTab(tab.key)}
-                  className={`flex items-center gap-2 px-5 py-3 font-medium text-[13px] whitespace-nowrap transition-all duration-200 active:scale-90 active:opacity-70 rounded-t-lg border-b-2 ${
-                    isActive 
-                    ? 'bg-black/10 text-white border-[var(--theme-primary)]' 
-                    : 'text-white/60 border-transparent hover:text-white hover:bg-black/5'
-                  }`}>
+                <button onClick={() => handleSetActiveTab(tab.key)} className={`flex items-center gap-2 px-5 py-3 font-medium text-[13px] whitespace-nowrap transition-all duration-200 active:scale-90 active:opacity-70 rounded-t-lg border-b-2 ${isActive ? 'bg-black/10 text-white border-[var(--theme-primary)]' : 'text-white/60 border-transparent hover:text-white hover:bg-black/5'}`}>
                   {React.cloneElement(tab.icon as React.ReactElement, { size: 16, className: isActive ? 'text-[var(--theme-primary)]' : 'text-white/50' })}
                   {tab.label}
                 </button>
                 {isDev && (
-                  <button onClick={() => setPromptConfig({ isOpen: true, title: `${t.editTabName} (${tab.label})`, initialValue: tab.label, onSave: (val) => updateConfig({ [tab.configKey]: val }) })}
-                    className="p-1 -ml-1 mr-2 text-sky-400/50 hover:text-sky-300 bg-black/10 rounded-md transition-colors" title={t.editTabName}>
+                  <button onClick={() => setPromptConfig({ isOpen: true, title: `${t.editTabName} (${tab.label})`, initialValue: tab.label, onSave: (val) => updateConfig({ [tab.configKey]: val }) })} className="p-1 -ml-1 mr-2 text-sky-400/50 hover:text-sky-300 bg-black/10 rounded-md transition-colors" title={t.editTabName}>
                     <Pencil size={12} />
                   </button>
                 )}
@@ -1259,8 +1204,7 @@ function AppContent({
         )}
         {activeTab === 'products' && (
           <Suspense fallback={<TabLoading />}>
-            <ProductsTab products={config?.products || []} isRep={isRep} updateProducts={products => updateConfig({ products })}
-              fundBalance={config?.fundBalance} updateFundBalance={fundBalance => updateConfig({ fundBalance })} />
+            <ProductsTab products={config?.products || []} isRep={isRep} updateProducts={products => updateConfig({ products })} fundBalance={config?.fundBalance} updateFundBalance={fundBalance => updateConfig({ fundBalance })} />
           </Suspense>
         )}
         {activeTab === 'maintenance' && (
@@ -1277,8 +1221,7 @@ function AppContent({
         {NAV_TABS.map(tab => {
           const isActive = activeTab === tab.key;
           return (
-            <button key={tab.key} onClick={() => handleSetActiveTab(tab.key)}
-              className={`min-w-0 min-w-[50px] shrink flex-1 flex flex-col items-center justify-center gap-1 py-3 px-0.5 transition-all duration-200 active:scale-90 active:opacity-70 relative ${isActive ? 'text-[var(--theme-primary)]' : 'text-neutral-500 hover:text-neutral-300'}`}>
+            <button key={tab.key} onClick={() => handleSetActiveTab(tab.key)} className={`min-w-0 min-w-[50px] shrink flex-1 flex flex-col items-center justify-center gap-1 py-3 px-0.5 transition-all duration-200 active:scale-90 active:opacity-70 relative ${isActive ? 'text-[var(--theme-primary)]' : 'text-neutral-500 hover:text-neutral-300'}`}>
               {isActive && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-[var(--theme-primary)]" />}
               <span className={`transition-transform duration-200 ${isActive ? 'scale-110' : 'scale-100'}`}>{tab.icon}</span>
               <span className="text-[9px] font-semibold leading-tight text-center whitespace-pre-line">{tab.mobileLabel}</span>
@@ -1288,6 +1231,14 @@ function AppContent({
       </nav>
       <ConfirmModal isOpen={isClearMonthModalOpen} title={t.clearMonth} message={t.clearMonthConfirm} onConfirm={confirmClearMonth} onCancel={() => setIsClearMonthModalOpen(false)} />
       {residentSelectedDay && <ResidentDayModal dayNumber={residentSelectedDay.dayNumber} dayTasks={residentSelectedDay.dayTasks} onClose={() => setResidentSelectedDay(null)} />}
+      {editActivityData && (
+        <EditActivityModal
+          data={editActivityData}
+          onClose={() => setEditActivityData(null)}
+          onSaveOnlyThisDay={handleSaveOnlyThisDay}
+          onSaveFromHereOn={handleSaveFromHereOn}
+        />
+      )}
       {saveError && <ErrorBanner message={saveError} onDismiss={clearSaveError} />}
       {promptConfig?.isOpen && (
         <PromptModal title={promptConfig.title} initialValue={promptConfig.initialValue} onSave={(val) => { promptConfig.onSave(val); setPromptConfig(null); }} onClose={() => setPromptConfig(null)} />

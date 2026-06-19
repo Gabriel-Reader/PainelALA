@@ -4,7 +4,7 @@ import { AppConfig } from '../hooks/useWingConfig';
 import { HistoryModal } from './HistoryModal';
 import { useLang } from '../LanguageContext';
 
-type CalendarMode = 'cleaning' | 'maintenance' | 'fridge' | 'products' | 'coletivo';
+type CalendarMode = 'cleaning' | 'maintenance' | 'fridge' | 'products' | 'coletivo' | 'edit';
 
 interface DayTask {
   id: string;
@@ -60,6 +60,7 @@ export function CalendarSection({
     { key: 'fridge',      label: t.calendarModes.fridge,        active: 'bg-teal-600/80' },
     { key: 'products',    label: t.calendarModes.products,      active: 'bg-pink-600/80' },
     { key: 'coletivo',    label: t.calendarModes.coletivo,      active: 'bg-purple-600/80' },
+    { key: 'edit',        label: lang === 'en' ? 'Edit' : 'Editar', active: 'bg-indigo-600/80' },
   ];
 
   const isCurrentMonthView = viewDate.getMonth() === today.getMonth() && viewDate.getFullYear() === today.getFullYear();
